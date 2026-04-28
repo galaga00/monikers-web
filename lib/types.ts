@@ -1,4 +1,5 @@
 export type GamePhase = "setup" | "lobby" | "ready" | "playing" | "finished";
+export type TeamAssignmentMode = "auto" | "choose";
 
 export type Game = {
   id: string;
@@ -11,6 +12,8 @@ export type Game = {
   turn_number: number;
   round_number: number;
   prompts_per_player: number;
+  expected_players: number | null;
+  team_assignment_mode: TeamAssignmentMode;
   created_at: string;
 };
 

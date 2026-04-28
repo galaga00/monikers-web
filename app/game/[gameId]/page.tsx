@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
+  chooseTeam,
   endTurn,
   joinGame,
   loadSnapshot,
@@ -21,13 +22,16 @@ import type { GameSnapshot, Player, Prompt } from "@/lib/types";
 import {
   DEFAULT_PROMPTS_PER_PLAYER,
   DEFAULT_TEAM_COUNT,
+  DEFAULT_TEAM_ASSIGNMENT_MODE,
   getPlayerStorageKey,
   getPromptCountForPlayer,
   getPromptProgress,
+  getTeamRoster,
   getRoundName,
   hasPlayerSubmitted,
   getTurnSecondsLeft
 } from "@/lib/game-utils";
+import type { TeamAssignmentMode } from "@/lib/types";
 
 export default function GamePage() {
   const params = useParams<{ gameId: string }>();
@@ -39,6 +43,8 @@ export default function GamePage() {
   const [promptsPerPlayer, setPromptsPerPlayer] = useState(DEFAULT_PROMPTS_PER_PLAYER);
   const [teamCount, setTeamCount] = useState(DEFAULT_TEAM_COUNT);
   const [teamNames, setTeamNames] = useState(() => Array.from({ length: DEFAULT_TEAM_COUNT }, (_, index) => `Team ${index + 1}`));
+  const [expectedPlayers, setExpectedPlayers] = useState("");
+  const [teamAssignmentMode, setTeamAssignmentMode] = useState<TeamAssignmentMode>(DEFAULT_TEAM_ASSIGNMENT_MODE);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -130,7 +136,21 @@ export default function GamePage() {
   async function handleSetupSave(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!snapshot) return;
-    await runAction(() => saveGameSetup(snapshot.game.id, promptsPerPlayer, teamNames.slice(0, teamCount)));
+    const minimumExpectedPlayers = Math.max(1, snapshot.players.length);
+    await runAction(() =>
+      saveGameSetup(
+        snapshot.game.id,
+        promptsPerPlayer,
+        teamNames.slice(0, teamCount),
+        teamAssignmentMode,
+        expectedPlayers ? Math.max(minimumExpectedPlayers, Number(expectedPlayers)) : null
+      )
+    );
+  }
+
+  async function handleChooseTeam(teamId: string) {
+    if (!me) return;
+    await runAction(() => chooseTeam(me.id, teamId));
   }
 
   function handleTeamCountChange(nextCount: number) {
@@ -211,6 +231,10 @@ export default function GamePage() {
           setTeamCount={handleTeamCountChange}
           teamNames={teamNames}
           setTeamNames={setTeamNames}
+          expectedPlayers={expectedPlayers}
+          setExpectedPlayers={setExpectedPlayers}
+          teamAssignmentMode={teamAssignmentMode}
+          setTeamAssignmentMode={setTeamAssignmentMode}
           onSave={handleSetupSave}
         />
       ) : snapshot.game.phase === "lobby" ? (
@@ -227,6 +251,7 @@ export default function GamePage() {
           promptProgress={promptProgress}
           onNameSave={handleNameSave}
           onPromptSubmit={handleSubmitPrompts}
+          onChooseTeam={handleChooseTeam}
           onStart={() => runAction(() => startGame(snapshot))}
         />
       ) : (
@@ -257,6 +282,10 @@ function Setup({
   setTeamCount,
   teamNames,
   setTeamNames,
+  expectedPlayers,
+  setExpectedPlayers,
+  teamAssignmentMode,
+  setTeamAssignmentMode,
   onSave
 }: {
   busy: boolean;
@@ -267,6 +296,10 @@ function Setup({
   setTeamCount: (count: number) => void;
   teamNames: string[];
   setTeamNames: (names: string[]) => void;
+  expectedPlayers: string;
+  setExpectedPlayers: (count: string) => void;
+  teamAssignmentMode: TeamAssignmentMode;
+  setTeamAssignmentMode: (mode: TeamAssignmentMode) => void;
   onSave: (event: FormEvent<HTMLFormElement>) => void;
 }) {
   if (!isHost) {
@@ -283,6 +316,19 @@ function Setup({
       <h2>Game setup</h2>
       <div className="split">
         <div className="field">
+          <label htmlFor="expectedPlayers">Expected players</label>
+          <input
+            className="input"
+            id="expectedPlayers"
+            min={1}
+            max={200}
+            type="number"
+            value={expectedPlayers}
+            onChange={(event) => setExpectedPlayers(event.target.value)}
+            placeholder="Optional"
+          />
+        </div>
+        <div className="field">
           <label htmlFor="teamCount">Teams</label>
           <input
             className="input"
@@ -294,6 +340,8 @@ function Setup({
             onChange={(event) => setTeamCount(Number(event.target.value))}
           />
         </div>
+      </div>
+      <div className="split">
         <div className="field">
           <label htmlFor="promptCount">Prompts per player</label>
           <input
@@ -305,6 +353,25 @@ function Setup({
             value={promptsPerPlayer}
             onChange={(event) => setPromptsPerPlayer(Math.min(20, Math.max(1, Number(event.target.value))))}
           />
+        </div>
+        <div className="field">
+          <label>Team assignment</label>
+          <div className="segmented">
+            <button
+              className={teamAssignmentMode === "auto" ? "segment active" : "segment"}
+              type="button"
+              onClick={() => setTeamAssignmentMode("auto")}
+            >
+              Auto
+            </button>
+            <button
+              className={teamAssignmentMode === "choose" ? "segment active" : "segment"}
+              type="button"
+              onClick={() => setTeamAssignmentMode("choose")}
+            >
+              Players choose
+            </button>
+          </div>
         </div>
       </div>
       <div className="stack">
@@ -370,6 +437,7 @@ function Lobby({
   promptProgress,
   onNameSave,
   onPromptSubmit,
+  onChooseTeam,
   onStart
 }: {
   snapshot: GameSnapshot;
@@ -381,9 +449,10 @@ function Lobby({
   promptText: string;
   setPromptText: (text: string) => void;
   promptCount: number;
-  promptProgress: { submittedTotal: number; requiredTotal: number; isComplete: boolean };
+  promptProgress: { submittedTotal: number; requiredTotal: number; expectedTotal: number | null; isComplete: boolean };
   onNameSave: (event: FormEvent<HTMLFormElement>) => void;
   onPromptSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  onChooseTeam: (teamId: string) => void;
   onStart: () => void;
 }) {
   const myPromptCount = getPromptCountForPlayer(me.id, snapshot.prompts);
@@ -393,28 +462,39 @@ function Lobby({
     .map((line) => line.trim())
     .filter(Boolean).length;
   const canSubmitPrompts = myPromptsLeft > 0 && pendingPromptLines > 0;
+  const needsTeam = snapshot.game.team_assignment_mode === "choose" && !me.team_id;
+  const allPlayersHaveTeams = snapshot.players.every((player) => Boolean(player.team_id));
+  const canStart = promptProgress.isComplete && allPlayersHaveTeams;
 
   return (
     <div className="stack">
       <section className="card stack">
         <h2>Lobby</h2>
         <p className="muted">
-          {snapshot.players.length} players connected. Prompt progress: {promptProgress.submittedTotal} / {promptProgress.requiredTotal}.
+          {snapshot.game.expected_players
+            ? `Players: ${snapshot.players.length} / ${snapshot.game.expected_players}. `
+            : `${snapshot.players.length} players connected. `}
+          Prompt progress: {promptProgress.submittedTotal} / {promptProgress.requiredTotal}.
+          {promptProgress.expectedTotal && promptProgress.expectedTotal !== promptProgress.requiredTotal
+            ? ` Expected total: ${promptProgress.expectedTotal}.`
+            : ""}
         </p>
-        <ul className="list">
-          {snapshot.players.map((player) => (
-            <li className="list-item" key={player.id}>
-              <span>
-                {player.name}
-                {player.id === me.id ? " (you)" : ""}
-              </span>
-              <span className={hasPlayerSubmitted(player.id, snapshot.prompts, snapshot.game.prompts_per_player) ? "pill" : "pill pending"}>
-                {getPromptCountForPlayer(player.id, snapshot.prompts)} / {snapshot.game.prompts_per_player}
-              </span>
-            </li>
-          ))}
-        </ul>
+        <TeamRosters snapshot={snapshot} me={me} />
       </section>
+
+      {needsTeam ? (
+        <section className="card stack">
+          <h2>Choose your team</h2>
+          <div className="team-choice-grid">
+            {snapshot.teams.map((team) => (
+              <button className="team-choice" key={team.id} onClick={() => onChooseTeam(team.id)} disabled={busy}>
+                <strong>{team.name}</strong>
+                <span>{getTeamRoster(team.id, snapshot.players).length} players</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <form className="card stack" onSubmit={onNameSave}>
         <h2>Your name</h2>
@@ -436,7 +516,7 @@ function Lobby({
       <form className="card stack" onSubmit={onPromptSubmit}>
         <h2>Submit prompts</h2>
         <p className="muted">
-          Your prompts: {myPromptCount} / {snapshot.game.prompts_per_player}
+          {needsTeam ? "Choose a team first." : `Your prompts: ${myPromptCount} / ${snapshot.game.prompts_per_player}`}
         </p>
         <div className="field">
           <label htmlFor="prompts">Prompts</label>
@@ -448,7 +528,7 @@ function Lobby({
             placeholder={"Taylor Swift\nA toaster with ambition\nThe moon landing"}
           />
         </div>
-        <button className="button accent" disabled={busy || !canSubmitPrompts}>
+        <button className="button accent" disabled={busy || needsTeam || !canSubmitPrompts}>
           {myPromptsLeft > 0 ? `Submit ${Math.min(myPromptsLeft, pendingPromptLines) || ""} prompt${Math.min(myPromptsLeft, pendingPromptLines) === 1 ? "" : "s"}` : "All prompts submitted"}
         </button>
       </form>
@@ -458,8 +538,9 @@ function Lobby({
           <h2>Host controls</h2>
           <p className="muted">
             Start when everyone reaches {snapshot.game.prompts_per_player} / {snapshot.game.prompts_per_player}.
+            {!allPlayersHaveTeams ? " Everyone also needs a team." : ""}
           </p>
-          <button className="button blue" disabled={busy || promptCount < 1 || !promptProgress.isComplete} onClick={onStart}>
+          <button className="button blue" disabled={busy || promptCount < 1 || !canStart} onClick={onStart}>
             Start game
           </button>
         </section>
@@ -469,6 +550,58 @@ function Lobby({
           <p className="muted">You are all set once your prompts are submitted.</p>
         </section>
       )}
+    </div>
+  );
+}
+
+function TeamRosters({ snapshot, me }: { snapshot: GameSnapshot; me: Player }) {
+  const unassignedPlayers = snapshot.players.filter((player) => !player.team_id);
+
+  return (
+    <div className="team-rosters">
+      {snapshot.teams.map((team) => {
+        const roster = getTeamRoster(team.id, snapshot.players);
+        return (
+          <section className="team-roster" key={team.id}>
+            <div className="team-roster-heading">
+              <strong>{team.name}</strong>
+              <span>{roster.length}</span>
+            </div>
+            <ul className="list">
+              {roster.map((player) => (
+                <li className="list-item compact" key={player.id}>
+                  <span>
+                    {player.name}
+                    {player.id === me.id ? " (you)" : ""}
+                  </span>
+                  <span className={hasPlayerSubmitted(player.id, snapshot.prompts, snapshot.game.prompts_per_player) ? "pill" : "pill pending"}>
+                    {getPromptCountForPlayer(player.id, snapshot.prompts)} / {snapshot.game.prompts_per_player}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        );
+      })}
+      {unassignedPlayers.length > 0 ? (
+        <section className="team-roster">
+          <div className="team-roster-heading">
+            <strong>Choosing</strong>
+            <span>{unassignedPlayers.length}</span>
+          </div>
+          <ul className="list">
+            {unassignedPlayers.map((player) => (
+              <li className="list-item compact" key={player.id}>
+                <span>
+                  {player.name}
+                  {player.id === me.id ? " (you)" : ""}
+                </span>
+                <span className="pill pending">No team</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </div>
   );
 }
@@ -528,7 +661,10 @@ function Play({
     <div className="stack">
       <Scoreboard snapshot={snapshot} />
       <section className="card stack">
-        <h2>{getRoundName(snapshot.game.round_number)}</h2>
+        <div className="round-banner">
+          <span>Round {snapshot.game.round_number}</span>
+          <strong>{getRoundName(snapshot.game.round_number)}</strong>
+        </div>
         <div className="round-meta">
           <span>Turn {snapshot.game.turn_number}</span>
           <span>{activePlayer?.name ?? "Someone"} is up</span>

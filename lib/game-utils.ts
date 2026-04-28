@@ -4,6 +4,7 @@ export const ROUND_NAMES = ["Any Words", "One Word", "Charades"] as const;
 export const TURN_DURATION_SECONDS = 60;
 export const DEFAULT_TEAM_COUNT = 2;
 export const DEFAULT_PROMPTS_PER_PLAYER = 3;
+export const DEFAULT_TEAM_ASSIGNMENT_MODE = "auto";
 
 export function createJoinCode() {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -47,11 +48,17 @@ export function hasPlayerSubmitted(playerId: string, prompts: Prompt[], required
 
 export function getPromptProgress(snapshot: GameSnapshot) {
   const requiredTotal = snapshot.players.length * snapshot.game.prompts_per_player;
+  const expectedTotal = snapshot.game.expected_players ? snapshot.game.expected_players * snapshot.game.prompts_per_player : null;
   return {
     submittedTotal: snapshot.prompts.length,
     requiredTotal,
+    expectedTotal,
     isComplete: snapshot.players.length > 0 && snapshot.prompts.length >= requiredTotal
   };
+}
+
+export function getTeamRoster(teamId: string, players: Player[]) {
+  return players.filter((player) => player.team_id === teamId);
 }
 
 export function getTeamForPlayer(player: Player | null, teams: Team[]) {

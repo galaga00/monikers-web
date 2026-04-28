@@ -11,6 +11,8 @@ create table if not exists public.games (
   turn_number integer not null default 0,
   round_number integer not null default 1,
   prompts_per_player integer not null default 3,
+  expected_players integer,
+  team_assignment_mode text not null default 'auto' check (team_assignment_mode in ('auto', 'choose')),
   created_at timestamptz not null default now()
 );
 
@@ -77,6 +79,8 @@ create index if not exists prompts_game_id_status_idx on public.prompts(game_id,
 create index if not exists turns_game_id_active_idx on public.turns(game_id, ended_at);
 
 alter table public.games add column if not exists prompts_per_player integer not null default 3;
+alter table public.games add column if not exists expected_players integer;
+alter table public.games add column if not exists team_assignment_mode text not null default 'auto';
 alter table public.games alter column phase set default 'setup';
 
 do $$
@@ -89,6 +93,14 @@ begin
     alter table public.games drop constraint games_prompts_per_player_check;
   end if;
   alter table public.games add constraint games_prompts_per_player_check check (prompts_per_player between 1 and 20);
+  if exists (select 1 from pg_constraint where conname = 'games_expected_players_check') then
+    alter table public.games drop constraint games_expected_players_check;
+  end if;
+  alter table public.games add constraint games_expected_players_check check (expected_players is null or expected_players between 1 and 200);
+  if exists (select 1 from pg_constraint where conname = 'games_team_assignment_mode_check') then
+    alter table public.games drop constraint games_team_assignment_mode_check;
+  end if;
+  alter table public.games add constraint games_team_assignment_mode_check check (team_assignment_mode in ('auto', 'choose'));
 end $$;
 
 do $$
