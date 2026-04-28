@@ -11,12 +11,13 @@ import {
   markCorrect,
   skipPrompt,
   startGame,
+  startTurn,
   submitPrompts,
   updatePlayerName
 } from "@/lib/game-api";
 import { supabase } from "@/lib/supabase";
 import type { GameSnapshot, Player, Prompt } from "@/lib/types";
-import { getPlayerStorageKey, getSubmittedCount } from "@/lib/game-utils";
+import { getPlayerStorageKey, getRoundName, getSubmittedCount, getTurnSecondsLeft } from "@/lib/game-utils";
 
 export default function GamePage() {
   const params = useParams<{ gameId: string }>();
@@ -149,7 +150,9 @@ export default function GamePage() {
           </div>
           <div>
             <span className="muted tiny">Status</span>
-            <p className="muted">{snapshot.game.phase === "lobby" ? "Collecting prompts" : snapshot.game.phase}</p>
+            <p className="muted">
+              {snapshot.game.phase === "lobby" ? "Collecting prompts" : `${getRoundName(snapshot.game.round_number)} - ${snapshot.game.phase}`}
+            </p>
           </div>
         </div>
         {isHost ? (
@@ -193,6 +196,7 @@ export default function GamePage() {
           onCorrect={() => runAction(() => markCorrect(snapshot))}
           onSkip={() => runAction(() => skipPrompt(snapshot))}
           onEndTurn={() => runAction(() => endTurn(snapshot))}
+          onStartTurn={() => runAction(() => startTurn(snapshot))}
         />
       )}
 
@@ -339,7 +343,8 @@ function Play({
   busy,
   onCorrect,
   onSkip,
-  onEndTurn
+  onEndTurn,
+  onStartTurn
 }: {
   snapshot: GameSnapshot;
   me: Player;
@@ -349,16 +354,33 @@ function Play({
   onCorrect: () => void;
   onSkip: () => void;
   onEndTurn: () => void;
+  onStartTurn: () => void;
 }) {
   const isActive = me.id === activePlayer?.id;
+  const [now, setNow] = useState(Date.now());
+  const [autoEndedTurnId, setAutoEndedTurnId] = useState<string | null>(null);
+  const secondsLeft = getTurnSecondsLeft(snapshot.activeTurn?.started_at, now);
+  const isTurnRunning = snapshot.game.phase === "playing";
+
+  useEffect(() => {
+    if (!isTurnRunning) return;
+    const timer = window.setInterval(() => setNow(Date.now()), 250);
+    return () => window.clearInterval(timer);
+  }, [isTurnRunning, snapshot.activeTurn?.id]);
+
+  useEffect(() => {
+    if (!isTurnRunning || !isActive || !snapshot.activeTurn || secondsLeft > 0 || autoEndedTurnId === snapshot.activeTurn.id) return;
+    setAutoEndedTurnId(snapshot.activeTurn.id);
+    onEndTurn();
+  }, [autoEndedTurnId, isActive, isTurnRunning, onEndTurn, secondsLeft, snapshot.activeTurn]);
 
   if (snapshot.game.phase === "finished") {
     return (
       <div className="stack">
         <Scoreboard snapshot={snapshot} />
         <section className="card">
-          <h2>Round finished</h2>
-          <p className="muted">All prompts have been guessed.</p>
+          <h2>Game finished</h2>
+          <p className="muted">All prompts were guessed through Charades.</p>
         </section>
       </div>
     );
@@ -368,18 +390,39 @@ function Play({
     <div className="stack">
       <Scoreboard snapshot={snapshot} />
       <section className="card stack">
-        <h2>{isActive ? "Your turn" : `${activePlayer?.name ?? "Someone"} is up`}</h2>
-        <p className="muted">
-          Turn {snapshot.game.turn_number}. {isActive ? "Show this screen to no one." : "Wait for your turn."}
-        </p>
-        <div className="prompt">{isActive ? currentPrompt?.text ?? "No prompt" : "Waiting..."}</div>
-        {isActive ? (
+        <h2>{getRoundName(snapshot.game.round_number)}</h2>
+        <div className="round-meta">
+          <span>Turn {snapshot.game.turn_number}</span>
+          <span>{activePlayer?.name ?? "Someone"} is up</span>
+        </div>
+        {snapshot.game.phase === "ready" ? (
+          <div className="ready-panel stack">
+            <p className="muted">
+              {isActive ? "Tap ready when your team is listening." : `Waiting for ${activePlayer?.name ?? "the active player"} to start.`}
+            </p>
+            {isActive ? (
+              <button className="button accent" disabled={busy} onClick={onStartTurn}>
+                Ready!
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+        {isTurnRunning ? (
+          <>
+            <div className={secondsLeft <= 10 ? "timer urgent" : "timer"} aria-live="polite">
+              {secondsLeft}s
+            </div>
+            <p className="muted">{isActive ? "Show this screen to no one." : "Wait for your turn."}</p>
+            <div className="prompt">{isActive ? currentPrompt?.text ?? "No prompt" : "Waiting..."}</div>
+          </>
+        ) : null}
+        {isActive && isTurnRunning ? (
           <div className="stack">
             <div className="button-row">
-              <button className="button accent" disabled={busy} onClick={onCorrect}>
+              <button className="button accent" disabled={busy || secondsLeft <= 0} onClick={onCorrect}>
                 Correct
               </button>
-              <button className="button warn" disabled={busy} onClick={onSkip}>
+              <button className="button warn" disabled={busy || secondsLeft <= 0} onClick={onSkip}>
                 Skip
               </button>
             </div>

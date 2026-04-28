@@ -2,7 +2,7 @@
 
 import { hasSupabaseConfig, supabase } from "./supabase";
 import type { Game, GameSnapshot, Player, Prompt, Team, Turn } from "./types";
-import { createJoinCode, getNextPlayer, getNextTeamForPlayer, shuffle } from "./game-utils";
+import { createJoinCode, getNextPlayer, getNextTeamForPlayer, isFinalRound, shuffle } from "./game-utils";
 
 function ensureSupabaseConfig() {
   if (!hasSupabaseConfig) {
@@ -178,17 +178,10 @@ export async function startGame(snapshot: GameSnapshot) {
   const team = snapshot.teams.find((candidate) => candidate.id === activePlayer.team_id) ?? snapshot.teams[0];
   await Promise.all(promptUpdates);
 
-  const { error: turnError } = await supabase.from("turns").insert({
-    game_id: snapshot.game.id,
-    team_id: team.id,
-    player_id: activePlayer.id
-  });
-  if (turnError) throw turnError;
-
   const { error: gameError } = await supabase
     .from("games")
     .update({
-      phase: "playing",
+      phase: "ready",
       active_player_id: activePlayer.id,
       current_team_id: team.id,
       current_prompt_id: firstPrompt.id,
@@ -197,6 +190,31 @@ export async function startGame(snapshot: GameSnapshot) {
     })
     .eq("id", snapshot.game.id);
 
+  if (gameError) throw gameError;
+}
+
+export async function startTurn(snapshot: GameSnapshot) {
+  ensureSupabaseConfig();
+  const activePlayer = snapshot.players.find((player) => player.id === snapshot.game.active_player_id);
+  const team = snapshot.teams.find((candidate) => candidate.id === snapshot.game.current_team_id);
+
+  if (!activePlayer || !team || !snapshot.game.current_prompt_id) {
+    throw new Error("This turn is not ready to start yet.");
+  }
+
+  if (snapshot.activeTurn) {
+    const { error } = await supabase.from("turns").update({ ended_at: new Date().toISOString() }).eq("id", snapshot.activeTurn.id);
+    if (error) throw error;
+  }
+
+  const { error: turnError } = await supabase.from("turns").insert({
+    game_id: snapshot.game.id,
+    team_id: team.id,
+    player_id: activePlayer.id
+  });
+  if (turnError) throw turnError;
+
+  const { error: gameError } = await supabase.from("games").update({ phase: "playing" }).eq("id", snapshot.game.id);
   if (gameError) throw gameError;
 }
 
@@ -213,10 +231,7 @@ async function activateNextPrompt(gameId: string, excludePromptId?: string) {
 
   const promptList = prompts as Prompt[];
   const nextPrompt = promptList.find((prompt) => prompt.id !== excludePromptId) ?? promptList[0] ?? null;
-  if (!nextPrompt) {
-    await supabase.from("games").update({ current_prompt_id: null, phase: "finished" }).eq("id", gameId);
-    return null;
-  }
+  if (!nextPrompt) return null;
 
   const { error: promptError } = await supabase.from("prompts").update({ status: "active" }).eq("id", nextPrompt.id);
   if (promptError) throw promptError;
@@ -224,6 +239,62 @@ async function activateNextPrompt(gameId: string, excludePromptId?: string) {
   const { error: gameError } = await supabase.from("games").update({ current_prompt_id: nextPrompt.id }).eq("id", gameId);
   if (gameError) throw gameError;
   return nextPrompt;
+}
+
+async function prepareNextRound(snapshot: GameSnapshot) {
+  if (snapshot.activeTurn) {
+    const { error } = await supabase
+      .from("turns")
+      .update({ ended_at: new Date().toISOString() })
+      .eq("id", snapshot.activeTurn.id);
+    if (error) throw error;
+  }
+
+  if (isFinalRound(snapshot.game.round_number)) {
+    const { error } = await supabase
+      .from("games")
+      .update({ phase: "finished", current_prompt_id: null, active_player_id: null, current_team_id: null })
+      .eq("id", snapshot.game.id);
+    if (error) throw error;
+    return;
+  }
+
+  const nextRoundNumber = snapshot.game.round_number + 1;
+  const shuffledPrompts = shuffle(snapshot.prompts);
+  const firstPrompt = shuffledPrompts[0];
+  const nextPlayer = getNextPlayer(snapshot);
+  const nextTeam = getNextTeamForPlayer(nextPlayer, snapshot.teams);
+
+  if (!firstPrompt || !nextPlayer || !nextTeam) {
+    const { error } = await supabase
+      .from("games")
+      .update({ phase: "finished", current_prompt_id: null, active_player_id: null, current_team_id: null })
+      .eq("id", snapshot.game.id);
+    if (error) throw error;
+    return;
+  }
+
+  const promptUpdates = shuffledPrompts.map((prompt, deckOrder) =>
+    supabase.from("prompts").update({ deck_order: deckOrder, status: deckOrder === 0 ? "active" : "available" }).eq("id", prompt.id)
+  );
+
+  const results = await Promise.all(promptUpdates);
+  const promptError = results.find((result) => result.error)?.error;
+  if (promptError) throw promptError;
+
+  const { error: gameError } = await supabase
+    .from("games")
+    .update({
+      phase: "ready",
+      active_player_id: nextPlayer.id,
+      current_team_id: nextTeam.id,
+      current_prompt_id: firstPrompt.id,
+      round_number: nextRoundNumber,
+      turn_number: snapshot.game.turn_number + 1
+    })
+    .eq("id", snapshot.game.id);
+
+  if (gameError) throw gameError;
 }
 
 export async function markCorrect(snapshot: GameSnapshot) {
@@ -247,7 +318,11 @@ export async function markCorrect(snapshot: GameSnapshot) {
   const results = await Promise.all(updates);
   const error = results.find((result) => result.error)?.error;
   if (error) throw error;
-  await activateNextPrompt(snapshot.game.id);
+
+  const nextPrompt = await activateNextPrompt(snapshot.game.id);
+  if (!nextPrompt) {
+    await prepareNextRound(snapshot);
+  }
 }
 
 export async function skipPrompt(snapshot: GameSnapshot) {
@@ -301,19 +376,13 @@ export async function endTurn(snapshot: GameSnapshot) {
     return;
   }
 
-  const { error: turnError } = await supabase.from("turns").insert({
-    game_id: snapshot.game.id,
-    player_id: nextPlayer.id,
-    team_id: nextTeam.id
-  });
-  if (turnError) throw turnError;
-
   const { error: promptError } = await supabase.from("prompts").update({ status: "active" }).eq("id", nextPrompt.id);
   if (promptError) throw promptError;
 
   const { error: gameError } = await supabase
     .from("games")
     .update({
+      phase: "ready",
       active_player_id: nextPlayer.id,
       current_team_id: nextTeam.id,
       current_prompt_id: nextPrompt.id,

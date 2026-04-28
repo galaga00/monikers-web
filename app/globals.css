@@ -281,6 +281,46 @@ a {
   font-size: 2rem;
 }
 
+.round-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.round-meta span {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: white;
+  padding: 6px 9px;
+}
+
+.ready-panel {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  padding: 14px;
+}
+
+.timer {
+  display: grid;
+  min-height: 84px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #101828;
+  color: white;
+  font-size: 3rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.timer.urgent {
+  background: var(--danger);
+}
+
 .prompt {
   display: grid;
   min-height: 220px;

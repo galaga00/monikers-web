@@ -1,5 +1,8 @@
 import type { GameSnapshot, Player, Prompt, Team } from "./types";
 
+export const ROUND_NAMES = ["Any Words", "One Word", "Charades"] as const;
+export const TURN_DURATION_SECONDS = 60;
+
 export function createJoinCode() {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   return Array.from({ length: 5 }, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join("");
@@ -51,4 +54,18 @@ export function getNextPlayer(snapshot: GameSnapshot) {
 export function getNextTeamForPlayer(player: Player | null, teams: Team[]) {
   if (!player?.team_id) return teams[0] ?? null;
   return teams.find((team) => team.id === player.team_id) ?? teams[0] ?? null;
+}
+
+export function getRoundName(roundNumber: number) {
+  return ROUND_NAMES[roundNumber - 1] ?? `Round ${roundNumber}`;
+}
+
+export function isFinalRound(roundNumber: number) {
+  return roundNumber >= ROUND_NAMES.length;
+}
+
+export function getTurnSecondsLeft(startedAt: string | null | undefined, now = Date.now()) {
+  if (!startedAt) return TURN_DURATION_SECONDS;
+  const elapsedSeconds = Math.floor((now - new Date(startedAt).getTime()) / 1000);
+  return Math.max(0, TURN_DURATION_SECONDS - elapsedSeconds);
 }

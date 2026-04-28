@@ -1,4 +1,4 @@
-export type GamePhase = "lobby" | "playing" | "finished";
+export type GamePhase = "lobby" | "ready" | "playing" | "finished";
 
 export type Game = {
   id: string;
