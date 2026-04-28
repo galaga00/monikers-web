@@ -27,6 +27,7 @@ import {
   DEFAULT_TEAM_COUNT,
   DEFAULT_TEAM_ASSIGNMENT_MODE,
   getDraftSelectedCountForPlayer,
+  getLegacyPlayerStorageKey,
   getPlayerStorageKey,
   getPromptCountForPlayer,
   getPromptProgress,
@@ -64,7 +65,11 @@ export default function GamePage() {
   }, [gameId]);
 
   useEffect(() => {
-    setPlayerId(localStorage.getItem(getPlayerStorageKey(gameId)));
+    const savedPlayerId = localStorage.getItem(getPlayerStorageKey(gameId)) ?? localStorage.getItem(getLegacyPlayerStorageKey(gameId));
+    if (savedPlayerId) {
+      localStorage.setItem(getPlayerStorageKey(gameId), savedPlayerId);
+      setPlayerId(savedPlayerId);
+    }
     refresh().catch((loadError) => setError(loadError instanceof Error ? loadError.message : "Could not load game."));
   }, [gameId, refresh]);
 
@@ -118,6 +123,7 @@ export default function GamePage() {
     await runAction(async () => {
       const { player } = await joinGame(snapshot.game.code, joinName);
       localStorage.setItem(getPlayerStorageKey(snapshot.game.id), player.id);
+      localStorage.setItem(getLegacyPlayerStorageKey(snapshot.game.id), player.id);
       setPlayerId(player.id);
     });
   }
@@ -220,7 +226,7 @@ export default function GamePage() {
     <main className="shell">
       <header className="topbar">
         <div className="brand">
-          <strong>Prompt Party</strong>
+          <strong>Fish Bowl</strong>
           <span className="eyebrow">Host: {host?.name ?? "loading"}</span>
         </div>
         <Link className="button secondary" href="/">

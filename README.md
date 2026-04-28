@@ -1,6 +1,6 @@
-# Prompt Party
+# Fish Bowl
 
-A mobile-first Next.js + TypeScript MVP for a Monikers-style party game. Players join a hosted room from phones, submit prompts, and take turns marking prompts correct or skipped.
+A mobile-first Next.js + TypeScript party guessing game. Players join a hosted room from phones, submit or draft prompts, and take turns marking prompts correct or skipped.
 
 ## Setup
 

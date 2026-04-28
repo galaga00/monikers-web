@@ -2,8 +2,8 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Prompt Party",
-  description: "A mobile-first Monikers-style party game MVP"
+  title: "Fish Bowl",
+  description: "A mobile-first party guessing game"
 };
 
 export const viewport: Viewport = {

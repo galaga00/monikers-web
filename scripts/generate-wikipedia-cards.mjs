@@ -1,4 +1,4 @@
-const USER_AGENT = "monikers-web-card-generator/1.0 (local development)";
+const USER_AGENT = "fish-bowl-card-generator/1.0 (local development)";
 const DAYS_TO_SCAN = 21;
 const CARD_LIMIT = 250;
 const DAILY_LIMIT = 1000;

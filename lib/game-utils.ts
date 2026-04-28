@@ -27,6 +27,10 @@ export function shuffle<T>(items: T[]) {
 }
 
 export function getPlayerStorageKey(gameId: string) {
+  return `fish-bowl:${gameId}:player`;
+}
+
+export function getLegacyPlayerStorageKey(gameId: string) {
   return `monikers-mvp:${gameId}:player`;
 }
 

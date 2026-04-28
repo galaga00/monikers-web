@@ -3,7 +3,7 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createGame, joinGame } from "@/lib/game-api";
-import { getPlayerStorageKey, normalizeCode } from "@/lib/game-utils";
+import { getLegacyPlayerStorageKey, getPlayerStorageKey, normalizeCode } from "@/lib/game-utils";
 
 export default function Home() {
   const router = useRouter();
@@ -20,6 +20,7 @@ export default function Home() {
     try {
       const { game, player } = await createGame(hostName);
       localStorage.setItem(getPlayerStorageKey(game.id), player.id);
+      localStorage.setItem(getLegacyPlayerStorageKey(game.id), player.id);
       router.push(`/game/${game.id}`);
     } catch (createError) {
       setError(createError instanceof Error ? createError.message : "Could not create game.");
@@ -35,6 +36,7 @@ export default function Home() {
     try {
       const { game, player } = await joinGame(normalizeCode(joinCode), playerName);
       localStorage.setItem(getPlayerStorageKey(game.id), player.id);
+      localStorage.setItem(getLegacyPlayerStorageKey(game.id), player.id);
       router.push(`/game/${game.id}`);
     } catch (joinError) {
       setError(joinError instanceof Error ? joinError.message : "Could not join game.");
@@ -47,8 +49,8 @@ export default function Home() {
     <main className="shell">
       <section className="hero">
         <div className="brand">
-          <span className="eyebrow">Monikers-style MVP</span>
-          <h1>Prompt Party</h1>
+          <span className="eyebrow">Party guessing game</span>
+          <h1>Fish Bowl</h1>
         </div>
         <p>Set up teams and prompt count, invite phones with a short code, then pass timed turns around the table.</p>
       </section>
