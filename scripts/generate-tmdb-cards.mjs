@@ -104,13 +104,13 @@ function addCard(card) {
 function movieDescription(movie) {
   const year = yearFromDate(movie.release_date);
   const genres = (movie.genre_ids ?? []).map((id) => movieGenreMap.get(id)).filter(Boolean).slice(0, 2).join(" and ");
-  return `A ${year ? `${year} ` : ""}${genres ? `${genres.toLowerCase()} ` : ""}movie from TMDB's high-recognition movie lists.`;
+  return `A ${year ? `${year} ` : ""}${genres ? `${genres.toLowerCase()} ` : ""}movie people are likely to recognize.`;
 }
 
 function tvDescription(show) {
   const year = yearFromDate(show.first_air_date);
   const genres = (show.genre_ids ?? []).map((id) => tvGenreMap.get(id)).filter(Boolean).slice(0, 2).join(" and ");
-  return `A ${year ? `${year} ` : ""}${genres ? `${genres.toLowerCase()} ` : ""}TV series from TMDB's high-recognition TV lists.`;
+  return `A ${year ? `${year} ` : ""}${genres ? `${genres.toLowerCase()} ` : ""}TV series people are likely to recognize.`;
 }
 
 function personDescription(person) {
@@ -119,7 +119,7 @@ function personDescription(person) {
     .filter(Boolean)
     .slice(0, 3)
     .join(", ");
-  return `${person.known_for_department || "Entertainment"} figure on TMDB${known ? `, known for ${known}` : ""}.`;
+  return `${person.known_for_department || "Entertainment"} figure${known ? ` known for ${known}` : ""}.`;
 }
 
 function isReleasedMovie(movie) {
