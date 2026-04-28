@@ -4,11 +4,6 @@ import type { StarterDeckCard } from "./starter-deck";
 // Regenerate with: node scripts/generate-wikipedia-cards.mjs
 export const WIKIPEDIA_DECK: StarterDeckCard[] = [
   {
-    "id": "wiki-michael-2026-film",
-    "title": "Michael (2026 film)",
-    "description": "A high-viewed Wikipedia page about biographical film by antoine fuqua."
-  },
-  {
     "id": "wiki-michael-jackson",
     "title": "Michael Jackson",
     "description": "A high-viewed Wikipedia page about american singer (1958–2009)."
@@ -29,9 +24,9 @@ export const WIKIPEDIA_DECK: StarterDeckCard[] = [
     "description": "A high-viewed Wikipedia page about american singer and actor (born 1996)."
   },
   {
-    "id": "wiki-the-boys-season-5",
-    "title": "The Boys season 5",
-    "description": "A high-viewed Wikipedia page about season of television series."
+    "id": "wiki-the-boys",
+    "title": "The Boys",
+    "description": "A superhero satire TV series about a team trying to expose corrupt, celebrity-like superheroes."
   },
   {
     "id": "wiki-bhooth-bangla",
@@ -44,11 +39,6 @@ export const WIKIPEDIA_DECK: StarterDeckCard[] = [
     "description": "A high-viewed Wikipedia page about american singer-songwriter (born 2005)."
   },
   {
-    "id": "wiki-2026-nfl-draft",
-    "title": "2026 NFL draft",
-    "description": "A high-viewed Wikipedia page about 2026 american football draft."
-  },
-  {
     "id": "wiki-jermaine-jackson",
     "title": "Jermaine Jackson",
     "description": "A high-viewed Wikipedia page about american singer and songwriter (born 1954)."
@@ -59,29 +49,14 @@ export const WIKIPEDIA_DECK: StarterDeckCard[] = [
     "description": "A high-viewed Wikipedia page about canadian singer (born 1994)."
   },
   {
-    "id": "wiki-apex-2026-film",
-    "title": "Apex (2026 film)",
-    "description": "A high-viewed Wikipedia page about 2026 film by baltasar kormákur."
-  },
-  {
     "id": "wiki-charlize-theron",
     "title": "Charlize Theron",
     "description": "A high-viewed Wikipedia page about south african and american actress (born 1975)."
   },
   {
-    "id": "wiki-pragmata",
-    "title": "Pragmata",
-    "description": "A high-viewed Wikipedia page about 2026 video game."
-  },
-  {
     "id": "wiki-cristiano-ronaldo",
     "title": "Cristiano Ronaldo",
     "description": "A high-viewed Wikipedia page about portuguese footballer (born 1985)."
-  },
-  {
-    "id": "wiki-clayface-film",
-    "title": "Clayface (film)",
-    "description": "A high-viewed Wikipedia page about upcoming dc studios film."
   },
   {
     "id": "wiki-meryl-streep",
@@ -179,9 +154,9 @@ export const WIKIPEDIA_DECK: StarterDeckCard[] = [
     "description": "A high-viewed Wikipedia page about american singer and actress (born 1946)."
   },
   {
-    "id": "wiki-mortal-kombat-ii-film",
-    "title": "Mortal Kombat II (film)",
-    "description": "A high-viewed Wikipedia page about upcoming film by simon mcquoid."
+    "id": "wiki-mortal-kombat",
+    "title": "Mortal Kombat",
+    "description": "A fighting video game series known for martial arts battles, over-the-top special moves, and Fatalities."
   },
   {
     "id": "wiki-jack-white",
@@ -209,9 +184,9 @@ export const WIKIPEDIA_DECK: StarterDeckCard[] = [
     "description": "A high-viewed Wikipedia page about english musician, songwriter and activist (1940–1980)."
   },
   {
-    "id": "wiki-hells-kitchen-american-tv-series-season-9",
-    "title": "Hell's Kitchen (American TV series) season 9",
-    "description": "A high-viewed Wikipedia page about season of television series."
+    "id": "wiki-hells-kitchen",
+    "title": "Hell's Kitchen",
+    "description": "A cooking competition show where Gordon Ramsay pushes chefs through intense kitchen challenges."
   },
   {
     "id": "wiki-enya",
