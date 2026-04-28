@@ -1,5 +1,6 @@
 export type GamePhase = "setup" | "lobby" | "ready" | "playing" | "finished";
 export type TeamAssignmentMode = "auto" | "choose";
+export type PromptMode = "free" | "category";
 
 export type Game = {
   id: string;
@@ -14,6 +15,7 @@ export type Game = {
   prompts_per_player: number;
   expected_players: number | null;
   team_assignment_mode: TeamAssignmentMode;
+  prompt_mode: PromptMode;
   created_at: string;
 };
 
@@ -40,6 +42,7 @@ export type Prompt = {
   game_id: string;
   player_id: string;
   text: string;
+  category: string | null;
   status: "available" | "active" | "correct";
   deck_order: number | null;
   created_at: string;

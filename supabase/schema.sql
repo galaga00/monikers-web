@@ -13,6 +13,7 @@ create table if not exists public.games (
   prompts_per_player integer not null default 3,
   expected_players integer,
   team_assignment_mode text not null default 'auto' check (team_assignment_mode in ('auto', 'choose')),
+  prompt_mode text not null default 'free' check (prompt_mode in ('free', 'category')),
   created_at timestamptz not null default now()
 );
 
@@ -40,6 +41,7 @@ create table if not exists public.prompts (
   game_id uuid not null references public.games(id) on delete cascade,
   player_id uuid not null references public.players(id) on delete cascade,
   text text not null,
+  category text,
   status text not null default 'available' check (status in ('available', 'active', 'correct')),
   deck_order integer,
   created_at timestamptz not null default now()
@@ -81,7 +83,9 @@ create index if not exists turns_game_id_active_idx on public.turns(game_id, end
 alter table public.games add column if not exists prompts_per_player integer not null default 3;
 alter table public.games add column if not exists expected_players integer;
 alter table public.games add column if not exists team_assignment_mode text not null default 'auto';
+alter table public.games add column if not exists prompt_mode text not null default 'free';
 alter table public.games alter column phase set default 'setup';
+alter table public.prompts add column if not exists category text;
 
 do $$
 begin
@@ -101,6 +105,10 @@ begin
     alter table public.games drop constraint games_team_assignment_mode_check;
   end if;
   alter table public.games add constraint games_team_assignment_mode_check check (team_assignment_mode in ('auto', 'choose'));
+  if exists (select 1 from pg_constraint where conname = 'games_prompt_mode_check') then
+    alter table public.games drop constraint games_prompt_mode_check;
+  end if;
+  alter table public.games add constraint games_prompt_mode_check check (prompt_mode in ('free', 'category'));
 end $$;
 
 do $$

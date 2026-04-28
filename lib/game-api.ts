@@ -1,7 +1,7 @@
 "use client";
 
 import { hasSupabaseConfig, supabase } from "./supabase";
-import type { Game, GameSnapshot, Player, Prompt, Team, Turn } from "./types";
+import type { Game, GameSnapshot, Player, Prompt, PromptMode, Team, Turn } from "./types";
 import {
   createJoinCode,
   DEFAULT_PROMPTS_PER_PLAYER,
@@ -31,7 +31,8 @@ export async function createGame(hostName: string) {
         code: createJoinCode(),
         phase: "setup",
         prompts_per_player: DEFAULT_PROMPTS_PER_PLAYER,
-        team_assignment_mode: DEFAULT_TEAM_ASSIGNMENT_MODE
+        team_assignment_mode: DEFAULT_TEAM_ASSIGNMENT_MODE,
+        prompt_mode: "free"
       })
       .select("*")
       .single<Game>();
@@ -73,6 +74,7 @@ export async function saveGameSetup(
   promptsPerPlayer: number,
   teamNames: string[],
   teamAssignmentMode: "auto" | "choose",
+  promptMode: PromptMode,
   expectedPlayers?: number | null
 ) {
   ensureSupabaseConfig();
@@ -100,6 +102,7 @@ export async function saveGameSetup(
       prompts_per_player: cleanPromptsPerPlayer,
       expected_players: cleanExpectedPlayers,
       team_assignment_mode: teamAssignmentMode,
+      prompt_mode: promptMode,
       phase: "lobby"
     })
     .eq("id", gameId);
@@ -195,9 +198,14 @@ export async function assignPlayerToTeam(playerId: string, teamId: string) {
   if (error) throw error;
 }
 
-export async function submitPrompts(gameId: string, playerId: string, prompts: string[]) {
+export async function submitPrompts(gameId: string, playerId: string, prompts: Array<string | { text: string; category?: string }>) {
   ensureSupabaseConfig();
-  const cleanPrompts = prompts.map((prompt) => prompt.trim()).filter(Boolean);
+  const cleanPrompts = prompts
+    .map((prompt) => {
+      if (typeof prompt === "string") return { text: prompt.trim(), category: null };
+      return { text: prompt.text.trim(), category: prompt.category?.trim() || null };
+    })
+    .filter((prompt) => prompt.text);
   const { data: game, error: gameError } = await supabase.from("games").select("*").eq("id", gameId).single<Game>();
   if (gameError) throw gameError;
 
@@ -217,7 +225,8 @@ export async function submitPrompts(gameId: string, playerId: string, prompts: s
       promptsToInsert.map((text) => ({
         game_id: gameId,
         player_id: playerId,
-        text
+        text: text.text,
+        category: text.category
       }))
     );
     if (promptError) throw promptError;

@@ -31,7 +31,8 @@ import {
   hasPlayerSubmitted,
   getTurnSecondsLeft
 } from "@/lib/game-utils";
-import type { TeamAssignmentMode } from "@/lib/types";
+import { getPromptCategoriesForPlayer } from "@/lib/prompt-categories";
+import type { PromptMode, TeamAssignmentMode } from "@/lib/types";
 
 export default function GamePage() {
   const params = useParams<{ gameId: string }>();
@@ -40,11 +41,13 @@ export default function GamePage() {
   const [playerId, setPlayerId] = useState<string | null>(null);
   const [joinName, setJoinName] = useState("");
   const [promptText, setPromptText] = useState("");
+  const [categoryPromptValues, setCategoryPromptValues] = useState<string[]>([]);
   const [promptsPerPlayer, setPromptsPerPlayer] = useState(DEFAULT_PROMPTS_PER_PLAYER);
   const [teamCount, setTeamCount] = useState(DEFAULT_TEAM_COUNT);
   const [teamNames, setTeamNames] = useState(() => Array.from({ length: DEFAULT_TEAM_COUNT }, (_, index) => `Team ${index + 1}`));
   const [expectedPlayers, setExpectedPlayers] = useState("");
   const [teamAssignmentMode, setTeamAssignmentMode] = useState<TeamAssignmentMode>(DEFAULT_TEAM_ASSIGNMENT_MODE);
+  const [promptMode, setPromptMode] = useState<PromptMode>("free");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -121,15 +124,31 @@ export default function GamePage() {
     event.preventDefault();
     if (!snapshot || !me) return;
     await runAction(async () => {
-      await submitPrompts(
-        snapshot.game.id,
-        me.id,
-        promptText
-          .split("\n")
-          .map((line) => line.trim())
-          .filter(Boolean)
-      );
-      setPromptText("");
+      if (snapshot.game.prompt_mode === "category") {
+        const categories = getPromptCategoriesForPlayer(snapshot.game.id, me.id, snapshot.game.prompts_per_player);
+        const existingPromptCount = getPromptCountForPlayer(me.id, snapshot.prompts);
+        await submitPrompts(
+          snapshot.game.id,
+          me.id,
+          categoryPromptValues
+            .map((text, index) => ({
+              text,
+              category: categories[existingPromptCount + index]
+            }))
+            .filter((prompt) => prompt.text.trim())
+        );
+        setCategoryPromptValues([]);
+      } else {
+        await submitPrompts(
+          snapshot.game.id,
+          me.id,
+          promptText
+            .split("\n")
+            .map((line) => line.trim())
+            .filter(Boolean)
+        );
+        setPromptText("");
+      }
     });
   }
 
@@ -143,6 +162,7 @@ export default function GamePage() {
         promptsPerPlayer,
         teamNames.slice(0, teamCount),
         teamAssignmentMode,
+        promptMode,
         expectedPlayers ? Math.max(minimumExpectedPlayers, Number(expectedPlayers)) : null
       )
     );
@@ -239,6 +259,8 @@ export default function GamePage() {
           setExpectedPlayers={setExpectedPlayers}
           teamAssignmentMode={teamAssignmentMode}
           setTeamAssignmentMode={setTeamAssignmentMode}
+          promptMode={promptMode}
+          setPromptMode={setPromptMode}
           onSave={handleSetupSave}
         />
       ) : snapshot.game.phase === "lobby" ? (
@@ -251,6 +273,8 @@ export default function GamePage() {
           setJoinName={setJoinName}
           promptText={promptText}
           setPromptText={setPromptText}
+          categoryPromptValues={categoryPromptValues}
+          setCategoryPromptValues={setCategoryPromptValues}
           promptCount={promptCount}
           promptProgress={promptProgress}
           onNameSave={handleNameSave}
@@ -291,6 +315,8 @@ function Setup({
   setExpectedPlayers,
   teamAssignmentMode,
   setTeamAssignmentMode,
+  promptMode,
+  setPromptMode,
   onSave
 }: {
   busy: boolean;
@@ -305,6 +331,8 @@ function Setup({
   setExpectedPlayers: (count: string) => void;
   teamAssignmentMode: TeamAssignmentMode;
   setTeamAssignmentMode: (mode: TeamAssignmentMode) => void;
+  promptMode: PromptMode;
+  setPromptMode: (mode: PromptMode) => void;
   onSave: (event: FormEvent<HTMLFormElement>) => void;
 }) {
   if (!isHost) {
@@ -379,6 +407,17 @@ function Setup({
           </div>
         </div>
       </div>
+      <div className="field">
+        <label>Prompt mode</label>
+        <div className="segmented">
+          <button className={promptMode === "free" ? "segment active" : "segment"} type="button" onClick={() => setPromptMode("free")}>
+            Anything goes
+          </button>
+          <button className={promptMode === "category" ? "segment active" : "segment"} type="button" onClick={() => setPromptMode("category")}>
+            Category mix
+          </button>
+        </div>
+      </div>
       <div className="stack">
         {teamNames.map((name, index) => (
           <div className="field" key={index}>
@@ -438,6 +477,8 @@ function Lobby({
   setJoinName,
   promptText,
   setPromptText,
+  categoryPromptValues,
+  setCategoryPromptValues,
   promptCount,
   promptProgress,
   onNameSave,
@@ -454,6 +495,8 @@ function Lobby({
   setJoinName: (name: string) => void;
   promptText: string;
   setPromptText: (text: string) => void;
+  categoryPromptValues: string[];
+  setCategoryPromptValues: (values: string[]) => void;
   promptCount: number;
   promptProgress: { submittedTotal: number; requiredTotal: number; expectedTotal: number | null; isComplete: boolean };
   onNameSave: (event: FormEvent<HTMLFormElement>) => void;
@@ -468,7 +511,11 @@ function Lobby({
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean).length;
-  const canSubmitPrompts = myPromptsLeft > 0 && pendingPromptLines > 0;
+  const categoryPrompts = getPromptCategoriesForPlayer(snapshot.game.id, me.id, snapshot.game.prompts_per_player);
+  const remainingCategories = categoryPrompts.slice(myPromptCount, myPromptCount + myPromptsLeft);
+  const pendingCategoryPromptCount = categoryPromptValues.filter((value) => value.trim()).length;
+  const pendingPromptCount = snapshot.game.prompt_mode === "category" ? pendingCategoryPromptCount : pendingPromptLines;
+  const canSubmitPrompts = myPromptsLeft > 0 && pendingPromptCount > 0;
   const canSelfSwitchTeams = snapshot.game.team_assignment_mode === "choose";
   const needsTeam = canSelfSwitchTeams && !me.team_id;
   const allPlayersHaveTeams = snapshot.players.every((player) => Boolean(player.team_id));
@@ -526,18 +573,42 @@ function Lobby({
         <p className="muted">
           {needsTeam ? "Choose a team first." : `Your prompts: ${myPromptCount} / ${snapshot.game.prompts_per_player}`}
         </p>
-        <div className="field">
-          <label htmlFor="prompts">Prompts</label>
-          <textarea
-            className="textarea"
-            id="prompts"
-            value={promptText}
-            onChange={(event) => setPromptText(event.target.value)}
-            placeholder={"Taylor Swift\nA toaster with ambition\nThe moon landing"}
-          />
-        </div>
+        {snapshot.game.prompt_mode === "category" ? (
+          <div className="stack">
+            {remainingCategories.map((category, index) => (
+              <div className="field category-field" key={`${category}-${index}`}>
+                <label htmlFor={`category-prompt-${index}`}>Write a prompt for</label>
+                <strong>{category}</strong>
+                <input
+                  className="input"
+                  id={`category-prompt-${index}`}
+                  value={categoryPromptValues[index] ?? ""}
+                  onChange={(event) => {
+                    const nextValues = [...categoryPromptValues];
+                    nextValues[index] = event.target.value;
+                    setCategoryPromptValues(nextValues);
+                  }}
+                  placeholder={category.includes(" ") ? "Your funny answer" : category}
+                />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="field">
+            <label htmlFor="prompts">Prompts</label>
+            <textarea
+              className="textarea"
+              id="prompts"
+              value={promptText}
+              onChange={(event) => setPromptText(event.target.value)}
+              placeholder={"Taylor Swift\nA toaster with ambition\nThe moon landing"}
+            />
+          </div>
+        )}
         <button className="button accent" disabled={busy || needsTeam || !canSubmitPrompts}>
-          {myPromptsLeft > 0 ? `Submit ${Math.min(myPromptsLeft, pendingPromptLines) || ""} prompt${Math.min(myPromptsLeft, pendingPromptLines) === 1 ? "" : "s"}` : "All prompts submitted"}
+          {myPromptsLeft > 0
+            ? `Submit ${Math.min(myPromptsLeft, pendingPromptCount) || ""} prompt${Math.min(myPromptsLeft, pendingPromptCount) === 1 ? "" : "s"}`
+            : "All prompts submitted"}
         </button>
       </form>
 

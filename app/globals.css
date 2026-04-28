@@ -138,6 +138,18 @@ a {
   font-weight: 700;
 }
 
+.category-field {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  padding: 12px;
+}
+
+.category-field strong {
+  color: var(--ink);
+  font-size: 1.25rem;
+}
+
 .input,
 .textarea {
   width: 100%;
