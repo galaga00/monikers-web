@@ -4,6 +4,8 @@ export const ROUND_NAMES = ["Any Words", "One Word", "Charades"] as const;
 export const TURN_DURATION_SECONDS = 60;
 export const DEFAULT_TEAM_COUNT = 2;
 export const DEFAULT_PROMPTS_PER_PLAYER = 3;
+export const DEFAULT_CARDS_DEALT_PER_PLAYER = 10;
+export const DEFAULT_CARDS_KEPT_PER_PLAYER = 5;
 export const DEFAULT_TEAM_ASSIGNMENT_MODE = "auto";
 
 export function createJoinCode() {
@@ -46,14 +48,27 @@ export function hasPlayerSubmitted(playerId: string, prompts: Prompt[], required
   return getPromptCountForPlayer(playerId, prompts) >= requiredCount;
 }
 
+export function getDraftSelectedCountForPlayer(playerId: string, snapshot: GameSnapshot) {
+  return snapshot.draftCards.filter((card) => card.player_id === playerId && card.selected).length;
+}
+
+export function hasPlayerDrafted(playerId: string, snapshot: GameSnapshot) {
+  return getDraftSelectedCountForPlayer(playerId, snapshot) >= snapshot.game.cards_kept_per_player;
+}
+
 export function getPromptProgress(snapshot: GameSnapshot) {
-  const requiredTotal = snapshot.players.length * snapshot.game.prompts_per_player;
-  const expectedTotal = snapshot.game.expected_players ? snapshot.game.expected_players * snapshot.game.prompts_per_player : null;
+  const perPlayer = snapshot.game.prompt_mode === "deck" ? snapshot.game.cards_kept_per_player : snapshot.game.prompts_per_player;
+  const submittedTotal =
+    snapshot.game.prompt_mode === "deck"
+      ? snapshot.draftCards.filter((card) => card.selected).length
+      : snapshot.prompts.length;
+  const requiredTotal = snapshot.players.length * perPlayer;
+  const expectedTotal = snapshot.game.expected_players ? snapshot.game.expected_players * perPlayer : null;
   return {
-    submittedTotal: snapshot.prompts.length,
+    submittedTotal,
     requiredTotal,
     expectedTotal,
-    isComplete: snapshot.players.length > 0 && snapshot.prompts.length >= requiredTotal
+    isComplete: snapshot.players.length > 0 && submittedTotal >= requiredTotal
   };
 }
 

@@ -11,6 +11,7 @@ import {
   loadSnapshot,
   markCorrect,
   saveGameSetup,
+  setDraftCardSelected,
   skipPrompt,
   startGame,
   startTurn,
@@ -21,13 +22,17 @@ import { supabase } from "@/lib/supabase";
 import type { GameSnapshot, Player, Prompt } from "@/lib/types";
 import {
   DEFAULT_PROMPTS_PER_PLAYER,
+  DEFAULT_CARDS_DEALT_PER_PLAYER,
+  DEFAULT_CARDS_KEPT_PER_PLAYER,
   DEFAULT_TEAM_COUNT,
   DEFAULT_TEAM_ASSIGNMENT_MODE,
+  getDraftSelectedCountForPlayer,
   getPlayerStorageKey,
   getPromptCountForPlayer,
   getPromptProgress,
   getTeamRoster,
   getRoundName,
+  hasPlayerDrafted,
   hasPlayerSubmitted,
   getTurnSecondsLeft
 } from "@/lib/game-utils";
@@ -43,6 +48,8 @@ export default function GamePage() {
   const [promptText, setPromptText] = useState("");
   const [categoryPromptValues, setCategoryPromptValues] = useState<string[]>([]);
   const [promptsPerPlayer, setPromptsPerPlayer] = useState(DEFAULT_PROMPTS_PER_PLAYER);
+  const [cardsDealtPerPlayer, setCardsDealtPerPlayer] = useState(DEFAULT_CARDS_DEALT_PER_PLAYER);
+  const [cardsKeptPerPlayer, setCardsKeptPerPlayer] = useState(DEFAULT_CARDS_KEPT_PER_PLAYER);
   const [teamCount, setTeamCount] = useState(DEFAULT_TEAM_COUNT);
   const [teamNames, setTeamNames] = useState(() => Array.from({ length: DEFAULT_TEAM_COUNT }, (_, index) => `Team ${index + 1}`));
   const [expectedPlayers, setExpectedPlayers] = useState("");
@@ -68,6 +75,7 @@ export default function GamePage() {
       .on("postgres_changes", { event: "*", schema: "public", table: "players", filter: `game_id=eq.${gameId}` }, refresh)
       .on("postgres_changes", { event: "*", schema: "public", table: "teams", filter: `game_id=eq.${gameId}` }, refresh)
       .on("postgres_changes", { event: "*", schema: "public", table: "prompts", filter: `game_id=eq.${gameId}` }, refresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "draft_cards", filter: `game_id=eq.${gameId}` }, refresh)
       .on("postgres_changes", { event: "*", schema: "public", table: "turns", filter: `game_id=eq.${gameId}` }, refresh)
       .subscribe();
 
@@ -163,9 +171,16 @@ export default function GamePage() {
         teamNames.slice(0, teamCount),
         teamAssignmentMode,
         promptMode,
-        expectedPlayers ? Math.max(minimumExpectedPlayers, Number(expectedPlayers)) : null
+        expectedPlayers ? Math.max(minimumExpectedPlayers, Number(expectedPlayers)) : null,
+        cardsDealtPerPlayer,
+        cardsKeptPerPlayer
       )
     );
+  }
+
+  async function handleDraftCardToggle(draftCardId: string, selected: boolean) {
+    if (!snapshot || !me) return;
+    await runAction(() => setDraftCardSelected(snapshot, me.id, draftCardId, selected));
   }
 
   async function handleChooseTeam(teamId: string) {
@@ -251,6 +266,10 @@ export default function GamePage() {
           isHost={isHost}
           promptsPerPlayer={promptsPerPlayer}
           setPromptsPerPlayer={setPromptsPerPlayer}
+          cardsDealtPerPlayer={cardsDealtPerPlayer}
+          setCardsDealtPerPlayer={setCardsDealtPerPlayer}
+          cardsKeptPerPlayer={cardsKeptPerPlayer}
+          setCardsKeptPerPlayer={setCardsKeptPerPlayer}
           teamCount={teamCount}
           setTeamCount={handleTeamCountChange}
           teamNames={teamNames}
@@ -281,6 +300,7 @@ export default function GamePage() {
           onPromptSubmit={handleSubmitPrompts}
           onChooseTeam={handleChooseTeam}
           onAssignPlayerToTeam={handleAssignPlayerToTeam}
+          onDraftCardToggle={handleDraftCardToggle}
           onStart={() => runAction(() => startGame(snapshot))}
         />
       ) : (
@@ -307,6 +327,10 @@ function Setup({
   isHost,
   promptsPerPlayer,
   setPromptsPerPlayer,
+  cardsDealtPerPlayer,
+  setCardsDealtPerPlayer,
+  cardsKeptPerPlayer,
+  setCardsKeptPerPlayer,
   teamCount,
   setTeamCount,
   teamNames,
@@ -323,6 +347,10 @@ function Setup({
   isHost: boolean;
   promptsPerPlayer: number;
   setPromptsPerPlayer: (count: number) => void;
+  cardsDealtPerPlayer: number;
+  setCardsDealtPerPlayer: (count: number) => void;
+  cardsKeptPerPlayer: number;
+  setCardsKeptPerPlayer: (count: number) => void;
   teamCount: number;
   setTeamCount: (count: number) => void;
   teamNames: string[];
@@ -384,6 +412,7 @@ function Setup({
             max={20}
             type="number"
             value={promptsPerPlayer}
+            disabled={promptMode === "deck"}
             onChange={(event) => setPromptsPerPlayer(Math.min(20, Math.max(1, Number(event.target.value))))}
           />
         </div>
@@ -416,8 +445,43 @@ function Setup({
           <button className={promptMode === "category" ? "segment active" : "segment"} type="button" onClick={() => setPromptMode("category")}>
             Category mix
           </button>
+          <button className={promptMode === "deck" ? "segment active" : "segment"} type="button" onClick={() => setPromptMode("deck")}>
+            Deck draft
+          </button>
         </div>
       </div>
+      {promptMode === "deck" ? (
+        <div className="split">
+          <div className="field">
+            <label htmlFor="cardsDealt">Cards dealt</label>
+            <input
+              className="input"
+              id="cardsDealt"
+              min={1}
+              max={20}
+              type="number"
+              value={cardsDealtPerPlayer}
+              onChange={(event) => {
+                const nextCount = Math.min(20, Math.max(1, Number(event.target.value)));
+                setCardsDealtPerPlayer(nextCount);
+                setCardsKeptPerPlayer(Math.min(cardsKeptPerPlayer, nextCount));
+              }}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="cardsKept">Cards kept</label>
+            <input
+              className="input"
+              id="cardsKept"
+              min={1}
+              max={cardsDealtPerPlayer}
+              type="number"
+              value={cardsKeptPerPlayer}
+              onChange={(event) => setCardsKeptPerPlayer(Math.min(cardsDealtPerPlayer, Math.max(1, Number(event.target.value))))}
+            />
+          </div>
+        </div>
+      ) : null}
       <div className="stack">
         {teamNames.map((name, index) => (
           <div className="field" key={index}>
@@ -485,6 +549,7 @@ function Lobby({
   onPromptSubmit,
   onChooseTeam,
   onAssignPlayerToTeam,
+  onDraftCardToggle,
   onStart
 }: {
   snapshot: GameSnapshot;
@@ -503,9 +568,12 @@ function Lobby({
   onPromptSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onChooseTeam: (teamId: string) => void;
   onAssignPlayerToTeam: (playerId: string, teamId: string) => void;
+  onDraftCardToggle: (draftCardId: string, selected: boolean) => void;
   onStart: () => void;
 }) {
   const myPromptCount = getPromptCountForPlayer(me.id, snapshot.prompts);
+  const myDraftCards = snapshot.draftCards.filter((card) => card.player_id === me.id);
+  const myDraftSelectedCount = getDraftSelectedCountForPlayer(me.id, snapshot);
   const myPromptsLeft = Math.max(0, snapshot.game.prompts_per_player - myPromptCount);
   const pendingPromptLines = promptText
     .split("\n")
@@ -515,11 +583,13 @@ function Lobby({
   const remainingCategories = categoryPrompts.slice(myPromptCount, myPromptCount + myPromptsLeft);
   const pendingCategoryPromptCount = categoryPromptValues.filter((value) => value.trim()).length;
   const pendingPromptCount = snapshot.game.prompt_mode === "category" ? pendingCategoryPromptCount : pendingPromptLines;
-  const canSubmitPrompts = myPromptsLeft > 0 && pendingPromptCount > 0;
+  const isDeckDraft = snapshot.game.prompt_mode === "deck";
+  const canSubmitPrompts = !isDeckDraft && myPromptsLeft > 0 && pendingPromptCount > 0;
   const canSelfSwitchTeams = snapshot.game.team_assignment_mode === "choose";
   const needsTeam = canSelfSwitchTeams && !me.team_id;
   const allPlayersHaveTeams = snapshot.players.every((player) => Boolean(player.team_id));
   const canStart = promptProgress.isComplete && allPlayersHaveTeams;
+  const progressLabel = isDeckDraft ? "Draft progress" : "Prompt progress";
 
   return (
     <div className="stack">
@@ -529,7 +599,7 @@ function Lobby({
           {snapshot.game.expected_players
             ? `Players: ${snapshot.players.length} / ${snapshot.game.expected_players}. `
             : `${snapshot.players.length} players connected. `}
-          Prompt progress: {promptProgress.submittedTotal} / {promptProgress.requiredTotal}.
+          {progressLabel}: {promptProgress.submittedTotal} / {promptProgress.requiredTotal}.
           {promptProgress.expectedTotal && promptProgress.expectedTotal !== promptProgress.requiredTotal
             ? ` Expected total: ${promptProgress.expectedTotal}.`
             : ""}
@@ -568,65 +638,94 @@ function Lobby({
         </button>
       </form>
 
-      <form className="card stack" onSubmit={onPromptSubmit}>
-        <h2>Submit prompts</h2>
-        <p className="muted">
-          {needsTeam ? "Choose a team first." : `Your prompts: ${myPromptCount} / ${snapshot.game.prompts_per_player}`}
-        </p>
-        {snapshot.game.prompt_mode === "category" ? (
-          <div className="stack">
-            {remainingCategories.map((category, index) => (
-              <div className="field category-field" key={`${category}-${index}`}>
-                <label htmlFor={`category-prompt-${index}`}>Write a prompt for</label>
-                <strong>{category}</strong>
-                <input
-                  className="input"
-                  id={`category-prompt-${index}`}
-                  value={categoryPromptValues[index] ?? ""}
-                  onChange={(event) => {
-                    const nextValues = [...categoryPromptValues];
-                    nextValues[index] = event.target.value;
-                    setCategoryPromptValues(nextValues);
-                  }}
-                  placeholder={category.includes(" ") ? "Your funny answer" : category}
-                />
-              </div>
+      {isDeckDraft ? (
+        <section className="card stack">
+          <h2>Pick your cards</h2>
+          <p className="muted">
+            {needsTeam
+              ? "Choose a team first."
+              : `Chosen ${myDraftSelectedCount} of ${snapshot.game.cards_kept_per_player}. These become the shared deck.`}
+          </p>
+          <div className="draft-grid">
+            {myDraftCards.map((card) => (
+              <button
+                className={card.selected ? "draft-card selected" : "draft-card"}
+                disabled={busy || needsTeam || (!card.selected && myDraftSelectedCount >= snapshot.game.cards_kept_per_player)}
+                key={card.id}
+                onClick={() => onDraftCardToggle(card.id, !card.selected)}
+                type="button"
+              >
+                <span className={card.selected ? "pill" : "pill pending"}>{card.selected ? "Picked" : "Available"}</span>
+                <strong>{card.title}</strong>
+                <span>{card.description}</span>
+              </button>
             ))}
           </div>
-        ) : (
-          <div className="field">
-            <label htmlFor="prompts">Prompts</label>
-            <textarea
-              className="textarea"
-              id="prompts"
-              value={promptText}
-              onChange={(event) => setPromptText(event.target.value)}
-              placeholder={"Taylor Swift\nA toaster with ambition\nThe moon landing"}
-            />
-          </div>
-        )}
-        <button className="button accent" disabled={busy || needsTeam || !canSubmitPrompts}>
-          {myPromptsLeft > 0
-            ? `Submit ${Math.min(myPromptsLeft, pendingPromptCount) || ""} prompt${Math.min(myPromptsLeft, pendingPromptCount) === 1 ? "" : "s"}`
-            : "All prompts submitted"}
-        </button>
-      </form>
+        </section>
+      ) : (
+        <form className="card stack" onSubmit={onPromptSubmit}>
+          <h2>Submit prompts</h2>
+          <p className="muted">
+            {needsTeam ? "Choose a team first." : `Your prompts: ${myPromptCount} / ${snapshot.game.prompts_per_player}`}
+          </p>
+          {snapshot.game.prompt_mode === "category" ? (
+            <div className="stack">
+              {remainingCategories.map((category, index) => (
+                <div className="field category-field" key={`${category}-${index}`}>
+                  <label htmlFor={`category-prompt-${index}`}>Write a prompt for</label>
+                  <strong>{category}</strong>
+                  <input
+                    className="input"
+                    id={`category-prompt-${index}`}
+                    value={categoryPromptValues[index] ?? ""}
+                    onChange={(event) => {
+                      const nextValues = [...categoryPromptValues];
+                      nextValues[index] = event.target.value;
+                      setCategoryPromptValues(nextValues);
+                    }}
+                    placeholder={category.includes(" ") ? "Your funny answer" : category}
+                  />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="field">
+              <label htmlFor="prompts">Prompts</label>
+              <textarea
+                className="textarea"
+                id="prompts"
+                value={promptText}
+                onChange={(event) => setPromptText(event.target.value)}
+                placeholder={"Taylor Swift\nA toaster with ambition\nThe moon landing"}
+              />
+            </div>
+          )}
+          <button className="button accent" disabled={busy || needsTeam || !canSubmitPrompts}>
+            {myPromptsLeft > 0
+              ? `Submit ${Math.min(myPromptsLeft, pendingPromptCount) || ""} prompt${Math.min(myPromptsLeft, pendingPromptCount) === 1 ? "" : "s"}`
+              : "All prompts submitted"}
+          </button>
+        </form>
+      )}
 
       {isHost ? (
         <section className="card stack">
           <h2>Host controls</h2>
           <p className="muted">
-            Start when everyone reaches {snapshot.game.prompts_per_player} / {snapshot.game.prompts_per_player}.
+            Start when everyone reaches{" "}
+            {isDeckDraft
+              ? `${snapshot.game.cards_kept_per_player} / ${snapshot.game.cards_kept_per_player} cards`
+              : `${snapshot.game.prompts_per_player} / ${snapshot.game.prompts_per_player} prompts`}.
             {!allPlayersHaveTeams ? " Everyone also needs a team." : ""}
           </p>
-          <button className="button blue" disabled={busy || promptCount < 1 || !canStart} onClick={onStart}>
+          <button className="button blue" disabled={busy || (!isDeckDraft && promptCount < 1) || !canStart} onClick={onStart}>
             Start game
           </button>
         </section>
       ) : (
         <section className="card">
           <h2>Waiting for host</h2>
-          <p className="muted">You are all set once your prompts are submitted.</p>
+          <p className="muted">You are all set once your {isDeckDraft ? "cards are picked" : "prompts are submitted"}.</p>
         </section>
       )}
     </div>
@@ -716,6 +815,15 @@ function PlayerLobbyRow({
   snapshot: GameSnapshot;
   onAssignPlayerToTeam: (playerId: string, teamId: string) => void;
 }) {
+  const isDeckDraft = snapshot.game.prompt_mode === "deck";
+  const progressCount = isDeckDraft
+    ? getDraftSelectedCountForPlayer(player.id, snapshot)
+    : getPromptCountForPlayer(player.id, snapshot.prompts);
+  const progressRequired = isDeckDraft ? snapshot.game.cards_kept_per_player : snapshot.game.prompts_per_player;
+  const isReady = isDeckDraft
+    ? hasPlayerDrafted(player.id, snapshot)
+    : hasPlayerSubmitted(player.id, snapshot.prompts, snapshot.game.prompts_per_player);
+
   return (
     <div className="player-row">
       <span>
@@ -723,8 +831,8 @@ function PlayerLobbyRow({
         {player.id === me.id ? " (you)" : ""}
       </span>
       <div className="player-row-actions">
-        <span className={hasPlayerSubmitted(player.id, snapshot.prompts, snapshot.game.prompts_per_player) ? "pill" : "pill pending"}>
-          {player.team_id ? `${getPromptCountForPlayer(player.id, snapshot.prompts)} / ${snapshot.game.prompts_per_player}` : "No team"}
+        <span className={isReady ? "pill" : "pill pending"}>
+          {player.team_id ? `${progressCount} / ${progressRequired}` : "No team"}
         </span>
         {isHost ? (
           <select
@@ -830,6 +938,7 @@ function Play({
             </div>
             <p className="muted">{isActive ? "Show this screen to no one." : "Wait for your turn."}</p>
             <div className="prompt">{isActive ? currentPrompt?.text ?? "No prompt" : "Waiting..."}</div>
+            {isActive && currentPrompt?.description ? <p className="card-note">{currentPrompt.description}</p> : null}
           </>
         ) : null}
         {isActive && isTurnRunning ? (

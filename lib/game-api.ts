@@ -1,13 +1,17 @@
 "use client";
 
 import { hasSupabaseConfig, supabase } from "./supabase";
-import type { Game, GameSnapshot, Player, Prompt, PromptMode, Team, Turn } from "./types";
+import { STARTER_DECK } from "./starter-deck";
+import type { DraftCard, Game, GameSnapshot, Player, Prompt, PromptMode, Team, Turn } from "./types";
 import {
   createJoinCode,
+  DEFAULT_CARDS_DEALT_PER_PLAYER,
+  DEFAULT_CARDS_KEPT_PER_PLAYER,
   DEFAULT_PROMPTS_PER_PLAYER,
   DEFAULT_TEAM_ASSIGNMENT_MODE,
   getFirstTurnAssignment,
   getNextTurnAssignment,
+  hasPlayerDrafted,
   hasPlayerSubmitted,
   isFinalRound,
   shuffle
@@ -31,6 +35,8 @@ export async function createGame(hostName: string) {
         code: createJoinCode(),
         phase: "setup",
         prompts_per_player: DEFAULT_PROMPTS_PER_PLAYER,
+        cards_dealt_per_player: DEFAULT_CARDS_DEALT_PER_PLAYER,
+        cards_kept_per_player: DEFAULT_CARDS_KEPT_PER_PLAYER,
         team_assignment_mode: DEFAULT_TEAM_ASSIGNMENT_MODE,
         prompt_mode: "free"
       })
@@ -75,14 +81,27 @@ export async function saveGameSetup(
   teamNames: string[],
   teamAssignmentMode: "auto" | "choose",
   promptMode: PromptMode,
-  expectedPlayers?: number | null
+  expectedPlayers?: number | null,
+  cardsDealtPerPlayer = DEFAULT_CARDS_DEALT_PER_PLAYER,
+  cardsKeptPerPlayer = DEFAULT_CARDS_KEPT_PER_PLAYER
 ) {
   ensureSupabaseConfig();
   const cleanPromptsPerPlayer = Math.min(20, Math.max(1, Math.round(promptsPerPlayer)));
+  const cleanCardsDealtPerPlayer = Math.min(20, Math.max(1, Math.round(cardsDealtPerPlayer)));
+  const cleanCardsKeptPerPlayer = Math.min(
+    cleanCardsDealtPerPlayer,
+    Math.max(1, Math.round(cardsKeptPerPlayer))
+  );
   const cleanTeamNames = teamNames.map((name, index) => name.trim() || `Team ${index + 1}`).slice(0, 12);
   const cleanExpectedPlayers = expectedPlayers ? Math.min(200, Math.max(1, Math.round(expectedPlayers))) : null;
 
   if (cleanTeamNames.length < 1) throw new Error("Add at least one team.");
+
+  const { error: promptDeleteError } = await supabase.from("prompts").delete().eq("game_id", gameId);
+  if (promptDeleteError) throw promptDeleteError;
+
+  const { error: draftDeleteError } = await supabase.from("draft_cards").delete().eq("game_id", gameId);
+  if (draftDeleteError) throw draftDeleteError;
 
   const { error: deleteError } = await supabase.from("teams").delete().eq("game_id", gameId);
   if (deleteError) throw deleteError;
@@ -100,6 +119,8 @@ export async function saveGameSetup(
     .from("games")
     .update({
       prompts_per_player: cleanPromptsPerPlayer,
+      cards_dealt_per_player: cleanCardsDealtPerPlayer,
+      cards_kept_per_player: cleanCardsKeptPerPlayer,
       expected_players: cleanExpectedPlayers,
       team_assignment_mode: teamAssignmentMode,
       prompt_mode: promptMode,
@@ -111,6 +132,12 @@ export async function saveGameSetup(
 
   const { error: hostError } = await supabase.from("players").update({ team_id: firstTeam.id }).eq("game_id", gameId).eq("is_host", true);
   if (hostError) throw hostError;
+
+  if (promptMode === "deck") {
+    const { data: players, error: playersError } = await supabase.from("players").select("*").eq("game_id", gameId);
+    if (playersError) throw playersError;
+    await Promise.all((players as Player[]).map((player) => ensureDraftHand(gameId, player.id, cleanCardsDealtPerPlayer)));
+  }
 }
 
 export async function joinGame(code: string, playerName: string) {
@@ -151,16 +178,22 @@ export async function joinGame(code: string, playerName: string) {
     .single<Player>();
 
   if (playerError) throw playerError;
+
+  if (game.prompt_mode === "deck") {
+    await ensureDraftHand(game.id, player.id, game.cards_dealt_per_player);
+  }
+
   return { game, player };
 }
 
 export async function loadSnapshot(gameId: string) {
   ensureSupabaseConfig();
-  const [gameResult, playersResult, teamsResult, promptsResult, turnResult] = await Promise.all([
+  const [gameResult, playersResult, teamsResult, promptsResult, draftCardsResult, turnResult] = await Promise.all([
     supabase.from("games").select("*").eq("id", gameId).single<Game>(),
     supabase.from("players").select("*").eq("game_id", gameId).order("created_at"),
     supabase.from("teams").select("*").eq("game_id", gameId).order("sort_order"),
     supabase.from("prompts").select("*").eq("game_id", gameId).order("deck_order", { nullsFirst: false }),
+    supabase.from("draft_cards").select("*").eq("game_id", gameId).order("sort_order"),
     supabase
       .from("turns")
       .select("*")
@@ -175,6 +208,7 @@ export async function loadSnapshot(gameId: string) {
   if (playersResult.error) throw playersResult.error;
   if (teamsResult.error) throw teamsResult.error;
   if (promptsResult.error) throw promptsResult.error;
+  if (draftCardsResult.error) throw draftCardsResult.error;
   if (turnResult.error) throw turnResult.error;
 
   return {
@@ -182,6 +216,7 @@ export async function loadSnapshot(gameId: string) {
     players: playersResult.data as Player[],
     teams: teamsResult.data as Team[],
     prompts: promptsResult.data as Prompt[],
+    draftCards: draftCardsResult.data as DraftCard[],
     activeTurn: turnResult.data
   } satisfies GameSnapshot;
 }
@@ -240,17 +275,44 @@ export async function submitPrompts(gameId: string, playerId: string, prompts: A
   if (playerError) throw playerError;
 }
 
-export async function startGame(snapshot: GameSnapshot) {
+export async function setDraftCardSelected(snapshot: GameSnapshot, playerId: string, draftCardId: string, selected: boolean) {
   ensureSupabaseConfig();
-  const unreadyPlayer = snapshot.players.find(
-    (player) => !player.team_id || !hasPlayerSubmitted(player.id, snapshot.prompts, snapshot.game.prompts_per_player)
-  );
+  if (snapshot.game.prompt_mode !== "deck") return;
 
-  if (unreadyPlayer) {
-    throw new Error(`${unreadyPlayer.name} still needs a team and prompts.`);
+  const currentSelectedCount = snapshot.draftCards.filter((card) => card.player_id === playerId && card.selected).length;
+  const card = snapshot.draftCards.find((candidate) => candidate.id === draftCardId && candidate.player_id === playerId);
+  if (!card) throw new Error("That card is not in your hand.");
+  if (selected && !card.selected && currentSelectedCount >= snapshot.game.cards_kept_per_player) {
+    throw new Error(`Choose only ${snapshot.game.cards_kept_per_player} cards.`);
   }
 
-  const shuffledPrompts = shuffle(snapshot.prompts);
+  const { error: cardError } = await supabase.from("draft_cards").update({ selected }).eq("id", draftCardId);
+  if (cardError) throw cardError;
+
+  const nextSelectedCount = currentSelectedCount + (selected && !card.selected ? 1 : 0) - (!selected && card.selected ? 1 : 0);
+  const { error: playerError } = await supabase
+    .from("players")
+    .update({ has_submitted: nextSelectedCount >= snapshot.game.cards_kept_per_player })
+    .eq("id", playerId);
+  if (playerError) throw playerError;
+}
+
+export async function startGame(snapshot: GameSnapshot) {
+  ensureSupabaseConfig();
+  const unreadyPlayer = snapshot.players.find((player) => {
+    if (!player.team_id) return true;
+    if (snapshot.game.prompt_mode === "deck") return !hasPlayerDrafted(player.id, snapshot);
+    return !hasPlayerSubmitted(player.id, snapshot.prompts, snapshot.game.prompts_per_player);
+  });
+
+  if (unreadyPlayer) {
+    throw new Error(
+      `${unreadyPlayer.name} still needs a team and ${snapshot.game.prompt_mode === "deck" ? "cards" : "prompts"}.`
+    );
+  }
+
+  const promptPool = snapshot.game.prompt_mode === "deck" ? await ensureDeckDraftPrompts(snapshot) : snapshot.prompts;
+  const shuffledPrompts = shuffle(promptPool);
   const firstAssignment = getFirstTurnAssignment(snapshot);
   const firstPrompt = shuffledPrompts[0];
 
@@ -275,6 +337,63 @@ export async function startGame(snapshot: GameSnapshot) {
     .eq("id", snapshot.game.id);
 
   if (gameError) throw gameError;
+}
+
+async function ensureDraftHand(gameId: string, playerId: string, cardsToDeal: number) {
+  const { count, error: countError } = await supabase
+    .from("draft_cards")
+    .select("id", { count: "exact", head: true })
+    .eq("game_id", gameId)
+    .eq("player_id", playerId);
+
+  if (countError) throw countError;
+  if ((count ?? 0) > 0) return;
+
+  const { data: existingCards, error: existingError } = await supabase
+    .from("draft_cards")
+    .select("card_id")
+    .eq("game_id", gameId);
+  if (existingError) throw existingError;
+
+  const usedIds = new Set((existingCards ?? []).map((card) => card.card_id as string));
+  const unusedCards = STARTER_DECK.filter((card) => !usedIds.has(card.id));
+  const sourceCards = unusedCards.length >= cardsToDeal ? unusedCards : STARTER_DECK;
+  const hand = shuffle(sourceCards).slice(0, cardsToDeal);
+
+  const { error } = await supabase.from("draft_cards").insert(
+    hand.map((card, sort_order) => ({
+      game_id: gameId,
+      player_id: playerId,
+      card_id: card.id,
+      title: card.title,
+      description: card.description,
+      sort_order
+    }))
+  );
+  if (error) throw error;
+}
+
+async function ensureDeckDraftPrompts(snapshot: GameSnapshot) {
+  if (snapshot.prompts.length > 0) return snapshot.prompts;
+
+  const selectedCards = snapshot.draftCards.filter((card) => card.selected);
+  if (selectedCards.length === 0) throw new Error("Choose at least one card before starting.");
+
+  const { data, error } = await supabase
+    .from("prompts")
+    .insert(
+      selectedCards.map((card) => ({
+        game_id: card.game_id,
+        player_id: card.player_id,
+        text: card.title,
+        description: card.description,
+        category: "Deck Draft"
+      }))
+    )
+    .select("*");
+
+  if (error) throw error;
+  return data as Prompt[];
 }
 
 export async function startTurn(snapshot: GameSnapshot) {

@@ -1,6 +1,6 @@
 export type GamePhase = "setup" | "lobby" | "ready" | "playing" | "finished";
 export type TeamAssignmentMode = "auto" | "choose";
-export type PromptMode = "free" | "category";
+export type PromptMode = "free" | "category" | "deck";
 
 export type Game = {
   id: string;
@@ -13,6 +13,8 @@ export type Game = {
   turn_number: number;
   round_number: number;
   prompts_per_player: number;
+  cards_dealt_per_player: number;
+  cards_kept_per_player: number;
   expected_players: number | null;
   team_assignment_mode: TeamAssignmentMode;
   prompt_mode: PromptMode;
@@ -43,8 +45,21 @@ export type Prompt = {
   player_id: string;
   text: string;
   category: string | null;
+  description: string | null;
   status: "available" | "active" | "correct";
   deck_order: number | null;
+  created_at: string;
+};
+
+export type DraftCard = {
+  id: string;
+  game_id: string;
+  player_id: string;
+  card_id: string;
+  title: string;
+  description: string;
+  selected: boolean;
+  sort_order: number;
   created_at: string;
 };
 
@@ -64,5 +79,6 @@ export type GameSnapshot = {
   players: Player[];
   teams: Team[];
   prompts: Prompt[];
+  draftCards: DraftCard[];
   activeTurn: Turn | null;
 };
