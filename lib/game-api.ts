@@ -6,8 +6,8 @@ import {
   createJoinCode,
   DEFAULT_PROMPTS_PER_PLAYER,
   DEFAULT_TEAM_ASSIGNMENT_MODE,
-  getNextPlayer,
-  getNextTeamForPlayer,
+  getFirstTurnAssignment,
+  getNextTurnAssignment,
   hasPlayerSubmitted,
   isFinalRound,
   shuffle
@@ -251,25 +251,23 @@ export async function startGame(snapshot: GameSnapshot) {
   }
 
   const shuffledPrompts = shuffle(snapshot.prompts);
-  const playersWithTeams = snapshot.players.filter((player) => player.team_id);
-  const activePlayer = playersWithTeams[0];
+  const firstAssignment = getFirstTurnAssignment(snapshot);
   const firstPrompt = shuffledPrompts[0];
 
-  if (!activePlayer || !firstPrompt) throw new Error("Need at least one player and one prompt to start.");
+  if (!firstAssignment || !firstPrompt) throw new Error("Need at least one player and one prompt to start.");
 
   const promptUpdates = shuffledPrompts.map((prompt, deckOrder) =>
     supabase.from("prompts").update({ deck_order: deckOrder, status: deckOrder === 0 ? "active" : "available" }).eq("id", prompt.id)
   );
 
-  const team = snapshot.teams.find((candidate) => candidate.id === activePlayer.team_id) ?? snapshot.teams[0];
   await Promise.all(promptUpdates);
 
   const { error: gameError } = await supabase
     .from("games")
     .update({
       phase: "ready",
-      active_player_id: activePlayer.id,
-      current_team_id: team.id,
+      active_player_id: firstAssignment.player.id,
+      current_team_id: firstAssignment.team.id,
       current_prompt_id: firstPrompt.id,
       turn_number: 1,
       round_number: 1
@@ -348,10 +346,9 @@ async function prepareNextRound(snapshot: GameSnapshot) {
   const nextRoundNumber = snapshot.game.round_number + 1;
   const shuffledPrompts = shuffle(snapshot.prompts);
   const firstPrompt = shuffledPrompts[0];
-  const nextPlayer = getNextPlayer(snapshot);
-  const nextTeam = getNextTeamForPlayer(nextPlayer, snapshot.teams);
+  const nextAssignment = getNextTurnAssignment(snapshot);
 
-  if (!firstPrompt || !nextPlayer || !nextTeam) {
+  if (!firstPrompt || !nextAssignment) {
     const { error } = await supabase
       .from("games")
       .update({ phase: "finished", current_prompt_id: null, active_player_id: null, current_team_id: null })
@@ -372,8 +369,8 @@ async function prepareNextRound(snapshot: GameSnapshot) {
     .from("games")
     .update({
       phase: "ready",
-      active_player_id: nextPlayer.id,
-      current_team_id: nextTeam.id,
+      active_player_id: nextAssignment.player.id,
+      current_team_id: nextAssignment.team.id,
       current_prompt_id: firstPrompt.id,
       round_number: nextRoundNumber,
       turn_number: snapshot.game.turn_number + 1
@@ -446,14 +443,13 @@ export async function endTurn(snapshot: GameSnapshot) {
     await supabase.from("prompts").update({ status: "available" }).eq("id", activePromptId);
   }
 
-  const nextPlayer = getNextPlayer(snapshot);
-  const nextTeam = getNextTeamForPlayer(nextPlayer, snapshot.teams);
+  const nextAssignment = getNextTurnAssignment(snapshot);
   const reusablePrompts = snapshot.prompts
     .filter((prompt) => prompt.status === "available" || prompt.id === activePromptId)
     .sort((a, b) => (a.deck_order ?? 9999) - (b.deck_order ?? 9999));
   const nextPrompt = reusablePrompts.find((prompt) => prompt.id !== activePromptId) ?? reusablePrompts[0] ?? null;
 
-  if (!nextPlayer || !nextTeam || !nextPrompt) {
+  if (!nextAssignment || !nextPrompt) {
     const { error } = await supabase
       .from("games")
       .update({ phase: "finished", current_prompt_id: null, active_player_id: null, current_team_id: null })
@@ -469,8 +465,8 @@ export async function endTurn(snapshot: GameSnapshot) {
     .from("games")
     .update({
       phase: "ready",
-      active_player_id: nextPlayer.id,
-      current_team_id: nextTeam.id,
+      active_player_id: nextAssignment.player.id,
+      current_team_id: nextAssignment.team.id,
       current_prompt_id: nextPrompt.id,
       turn_number: snapshot.game.turn_number + 1
     })
