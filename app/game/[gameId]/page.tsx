@@ -9,6 +9,7 @@ import {
   joinGame,
   loadSnapshot,
   markCorrect,
+  saveGameSetup,
   skipPrompt,
   startGame,
   startTurn,
@@ -17,7 +18,16 @@ import {
 } from "@/lib/game-api";
 import { supabase } from "@/lib/supabase";
 import type { GameSnapshot, Player, Prompt } from "@/lib/types";
-import { getPlayerStorageKey, getRoundName, getSubmittedCount, getTurnSecondsLeft } from "@/lib/game-utils";
+import {
+  DEFAULT_PROMPTS_PER_PLAYER,
+  DEFAULT_TEAM_COUNT,
+  getPlayerStorageKey,
+  getPromptCountForPlayer,
+  getPromptProgress,
+  getRoundName,
+  hasPlayerSubmitted,
+  getTurnSecondsLeft
+} from "@/lib/game-utils";
 
 export default function GamePage() {
   const params = useParams<{ gameId: string }>();
@@ -26,6 +36,9 @@ export default function GamePage() {
   const [playerId, setPlayerId] = useState<string | null>(null);
   const [joinName, setJoinName] = useState("");
   const [promptText, setPromptText] = useState("");
+  const [promptsPerPlayer, setPromptsPerPlayer] = useState(DEFAULT_PROMPTS_PER_PLAYER);
+  const [teamCount, setTeamCount] = useState(DEFAULT_TEAM_COUNT);
+  const [teamNames, setTeamNames] = useState(() => Array.from({ length: DEFAULT_TEAM_COUNT }, (_, index) => `Team ${index + 1}`));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -114,6 +127,20 @@ export default function GamePage() {
     });
   }
 
+  async function handleSetupSave(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!snapshot) return;
+    await runAction(() => saveGameSetup(snapshot.game.id, promptsPerPlayer, teamNames.slice(0, teamCount)));
+  }
+
+  function handleTeamCountChange(nextCount: number) {
+    const safeCount = Math.min(12, Math.max(1, nextCount));
+    setTeamCount(safeCount);
+    setTeamNames((currentNames) =>
+      Array.from({ length: safeCount }, (_, index) => currentNames[index] ?? `Team ${index + 1}`)
+    );
+  }
+
   if (!snapshot) {
     return (
       <main className="shell">
@@ -125,8 +152,8 @@ export default function GamePage() {
 
   const host = snapshot.players.find((player) => player.id === snapshot.game.host_player_id);
   const isHost = Boolean(me?.is_host);
-  const submittedCount = getSubmittedCount(snapshot.players);
   const promptCount = snapshot.prompts.length;
+  const promptProgress = getPromptProgress(snapshot);
   const joinUrl = typeof window === "undefined" ? "" : `${window.location.origin}/game/${snapshot.game.id}`;
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=192x192&data=${encodeURIComponent(joinUrl)}`;
 
@@ -151,11 +178,15 @@ export default function GamePage() {
           <div>
             <span className="muted tiny">Status</span>
             <p className="muted">
-              {snapshot.game.phase === "lobby" ? "Collecting prompts" : `${getRoundName(snapshot.game.round_number)} - ${snapshot.game.phase}`}
+              {snapshot.game.phase === "setup"
+                ? "Host setup"
+                : snapshot.game.phase === "lobby"
+                  ? "Collecting prompts"
+                  : `${getRoundName(snapshot.game.round_number)} - ${snapshot.game.phase}`}
             </p>
           </div>
         </div>
-        {isHost ? (
+        {isHost && snapshot.game.phase !== "setup" ? (
           <div className="split">
             <Image className="qr" src={qrUrl} alt="QR code for joining this game" width={164} height={164} unoptimized />
             <div className="stack">
@@ -170,6 +201,18 @@ export default function GamePage() {
 
       {!me ? (
         <JoinThisGame onSubmit={handleJoin} name={joinName} setName={setJoinName} busy={busy} />
+      ) : snapshot.game.phase === "setup" ? (
+        <Setup
+          busy={busy}
+          isHost={isHost}
+          promptsPerPlayer={promptsPerPlayer}
+          setPromptsPerPlayer={setPromptsPerPlayer}
+          teamCount={teamCount}
+          setTeamCount={handleTeamCountChange}
+          teamNames={teamNames}
+          setTeamNames={setTeamNames}
+          onSave={handleSetupSave}
+        />
       ) : snapshot.game.phase === "lobby" ? (
         <Lobby
           snapshot={snapshot}
@@ -180,8 +223,8 @@ export default function GamePage() {
           setJoinName={setJoinName}
           promptText={promptText}
           setPromptText={setPromptText}
-          submittedCount={submittedCount}
           promptCount={promptCount}
+          promptProgress={promptProgress}
           onNameSave={handleNameSave}
           onPromptSubmit={handleSubmitPrompts}
           onStart={() => runAction(() => startGame(snapshot))}
@@ -202,6 +245,89 @@ export default function GamePage() {
 
       {error ? <p className="notice">{error}</p> : null}
     </main>
+  );
+}
+
+function Setup({
+  busy,
+  isHost,
+  promptsPerPlayer,
+  setPromptsPerPlayer,
+  teamCount,
+  setTeamCount,
+  teamNames,
+  setTeamNames,
+  onSave
+}: {
+  busy: boolean;
+  isHost: boolean;
+  promptsPerPlayer: number;
+  setPromptsPerPlayer: (count: number) => void;
+  teamCount: number;
+  setTeamCount: (count: number) => void;
+  teamNames: string[];
+  setTeamNames: (names: string[]) => void;
+  onSave: (event: FormEvent<HTMLFormElement>) => void;
+}) {
+  if (!isHost) {
+    return (
+      <section className="card">
+        <h2>Waiting for host</h2>
+        <p className="muted">The host is choosing teams and prompt count.</p>
+      </section>
+    );
+  }
+
+  return (
+    <form className="card stack" onSubmit={onSave}>
+      <h2>Game setup</h2>
+      <div className="split">
+        <div className="field">
+          <label htmlFor="teamCount">Teams</label>
+          <input
+            className="input"
+            id="teamCount"
+            min={1}
+            max={12}
+            type="number"
+            value={teamCount}
+            onChange={(event) => setTeamCount(Number(event.target.value))}
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="promptCount">Prompts per player</label>
+          <input
+            className="input"
+            id="promptCount"
+            min={1}
+            max={20}
+            type="number"
+            value={promptsPerPlayer}
+            onChange={(event) => setPromptsPerPlayer(Math.min(20, Math.max(1, Number(event.target.value))))}
+          />
+        </div>
+      </div>
+      <div className="stack">
+        {teamNames.map((name, index) => (
+          <div className="field" key={index}>
+            <label htmlFor={`team-${index}`}>Team {index + 1}</label>
+            <input
+              className="input"
+              id={`team-${index}`}
+              value={name}
+              onChange={(event) => {
+                const nextNames = [...teamNames];
+                nextNames[index] = event.target.value;
+                setTeamNames(nextNames);
+              }}
+            />
+          </div>
+        ))}
+      </div>
+      <button className="button accent" disabled={busy}>
+        Create lobby
+      </button>
+    </form>
   );
 }
 
@@ -240,8 +366,8 @@ function Lobby({
   setJoinName,
   promptText,
   setPromptText,
-  submittedCount,
   promptCount,
+  promptProgress,
   onNameSave,
   onPromptSubmit,
   onStart
@@ -254,18 +380,26 @@ function Lobby({
   setJoinName: (name: string) => void;
   promptText: string;
   setPromptText: (text: string) => void;
-  submittedCount: number;
   promptCount: number;
+  promptProgress: { submittedTotal: number; requiredTotal: number; isComplete: boolean };
   onNameSave: (event: FormEvent<HTMLFormElement>) => void;
   onPromptSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onStart: () => void;
 }) {
+  const myPromptCount = getPromptCountForPlayer(me.id, snapshot.prompts);
+  const myPromptsLeft = Math.max(0, snapshot.game.prompts_per_player - myPromptCount);
+  const pendingPromptLines = promptText
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean).length;
+  const canSubmitPrompts = myPromptsLeft > 0 && pendingPromptLines > 0;
+
   return (
     <div className="stack">
       <section className="card stack">
         <h2>Lobby</h2>
         <p className="muted">
-          {snapshot.players.length} players connected. {submittedCount} submitted. {promptCount} prompts in the pool.
+          {snapshot.players.length} players connected. Prompt progress: {promptProgress.submittedTotal} / {promptProgress.requiredTotal}.
         </p>
         <ul className="list">
           {snapshot.players.map((player) => (
@@ -274,8 +408,8 @@ function Lobby({
                 {player.name}
                 {player.id === me.id ? " (you)" : ""}
               </span>
-              <span className={player.has_submitted ? "pill" : "pill pending"}>
-                {player.has_submitted ? "Submitted" : "Waiting"}
+              <span className={hasPlayerSubmitted(player.id, snapshot.prompts, snapshot.game.prompts_per_player) ? "pill" : "pill pending"}>
+                {getPromptCountForPlayer(player.id, snapshot.prompts)} / {snapshot.game.prompts_per_player}
               </span>
             </li>
           ))}
@@ -301,7 +435,9 @@ function Lobby({
 
       <form className="card stack" onSubmit={onPromptSubmit}>
         <h2>Submit prompts</h2>
-        <p className="muted">One prompt per line. You can submit more than once before the host starts.</p>
+        <p className="muted">
+          Your prompts: {myPromptCount} / {snapshot.game.prompts_per_player}
+        </p>
         <div className="field">
           <label htmlFor="prompts">Prompts</label>
           <textarea
@@ -312,16 +448,18 @@ function Lobby({
             placeholder={"Taylor Swift\nA toaster with ambition\nThe moon landing"}
           />
         </div>
-        <button className="button accent" disabled={busy || !promptText.trim()}>
-          Submit prompts
+        <button className="button accent" disabled={busy || !canSubmitPrompts}>
+          {myPromptsLeft > 0 ? `Submit ${Math.min(myPromptsLeft, pendingPromptLines) || ""} prompt${Math.min(myPromptsLeft, pendingPromptLines) === 1 ? "" : "s"}` : "All prompts submitted"}
         </button>
       </form>
 
       {isHost ? (
         <section className="card stack">
           <h2>Host controls</h2>
-          <p className="muted">Start once there is at least one prompt. Players can still watch from their phones.</p>
-          <button className="button blue" disabled={busy || promptCount < 1} onClick={onStart}>
+          <p className="muted">
+            Start when everyone reaches {snapshot.game.prompts_per_player} / {snapshot.game.prompts_per_player}.
+          </p>
+          <button className="button blue" disabled={busy || promptCount < 1 || !promptProgress.isComplete} onClick={onStart}>
             Start game
           </button>
         </section>

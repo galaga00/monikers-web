@@ -4,12 +4,13 @@ create table if not exists public.games (
   id uuid primary key default gen_random_uuid(),
   code text not null unique,
   host_player_id uuid,
-  phase text not null default 'lobby' check (phase in ('lobby', 'ready', 'playing', 'finished')),
+  phase text not null default 'setup' check (phase in ('setup', 'lobby', 'ready', 'playing', 'finished')),
   current_team_id uuid,
   active_player_id uuid,
   current_prompt_id uuid,
   turn_number integer not null default 0,
   round_number integer not null default 1,
+  prompts_per_player integer not null default 3,
   created_at timestamptz not null default now()
 );
 
@@ -75,12 +76,19 @@ create index if not exists teams_game_id_idx on public.teams(game_id);
 create index if not exists prompts_game_id_status_idx on public.prompts(game_id, status);
 create index if not exists turns_game_id_active_idx on public.turns(game_id, ended_at);
 
+alter table public.games add column if not exists prompts_per_player integer not null default 3;
+alter table public.games alter column phase set default 'setup';
+
 do $$
 begin
   if exists (select 1 from pg_constraint where conname = 'games_phase_check') then
     alter table public.games drop constraint games_phase_check;
   end if;
-  alter table public.games add constraint games_phase_check check (phase in ('lobby', 'ready', 'playing', 'finished'));
+  alter table public.games add constraint games_phase_check check (phase in ('setup', 'lobby', 'ready', 'playing', 'finished'));
+  if exists (select 1 from pg_constraint where conname = 'games_prompts_per_player_check') then
+    alter table public.games drop constraint games_prompts_per_player_check;
+  end if;
+  alter table public.games add constraint games_prompts_per_player_check check (prompts_per_player between 1 and 20);
 end $$;
 
 do $$

@@ -1,4 +1,4 @@
-export type GamePhase = "lobby" | "ready" | "playing" | "finished";
+export type GamePhase = "setup" | "lobby" | "ready" | "playing" | "finished";
 
 export type Game = {
   id: string;
@@ -10,6 +10,7 @@ export type Game = {
   current_prompt_id: string | null;
   turn_number: number;
   round_number: number;
+  prompts_per_player: number;
   created_at: string;
 };
 

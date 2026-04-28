@@ -2,7 +2,15 @@
 
 import { hasSupabaseConfig, supabase } from "./supabase";
 import type { Game, GameSnapshot, Player, Prompt, Team, Turn } from "./types";
-import { createJoinCode, getNextPlayer, getNextTeamForPlayer, isFinalRound, shuffle } from "./game-utils";
+import {
+  createJoinCode,
+  DEFAULT_PROMPTS_PER_PLAYER,
+  getNextPlayer,
+  getNextTeamForPlayer,
+  hasPlayerSubmitted,
+  isFinalRound,
+  shuffle
+} from "./game-utils";
 
 function ensureSupabaseConfig() {
   if (!hasSupabaseConfig) {
@@ -18,7 +26,7 @@ export async function createGame(hostName: string) {
   for (let attempt = 0; attempt < 5 && !game; attempt += 1) {
     const { data, error } = await supabase
       .from("games")
-      .insert({ code: createJoinCode() })
+      .insert({ code: createJoinCode(), phase: "setup", prompts_per_player: DEFAULT_PROMPTS_PER_PLAYER })
       .select("*")
       .single<Game>();
 
@@ -31,24 +39,12 @@ export async function createGame(hostName: string) {
 
   if (!game) throw lastError ?? new Error("Could not create game.");
 
-  const { data: teams, error: teamError } = await supabase
-    .from("teams")
-    .insert([
-      { game_id: game.id, name: "Team 1", sort_order: 0 },
-      { game_id: game.id, name: "Team 2", sort_order: 1 }
-    ])
-    .select("*");
-
-  if (teamError) throw teamError;
-
-  const team = teams?.[0] as Team | undefined;
   const { data: host, error: hostError } = await supabase
     .from("players")
     .insert({
       game_id: game.id,
       name: hostName.trim() || "Host",
-      is_host: true,
-      team_id: team?.id ?? null
+      is_host: true
     })
     .select("*")
     .single<Player>();
@@ -66,6 +62,36 @@ export async function createGame(hostName: string) {
   return { game: updatedGame, player: host };
 }
 
+export async function saveGameSetup(gameId: string, promptsPerPlayer: number, teamNames: string[]) {
+  ensureSupabaseConfig();
+  const cleanPromptsPerPlayer = Math.min(20, Math.max(1, Math.round(promptsPerPlayer)));
+  const cleanTeamNames = teamNames.map((name, index) => name.trim() || `Team ${index + 1}`).slice(0, 12);
+
+  if (cleanTeamNames.length < 1) throw new Error("Add at least one team.");
+
+  const { error: deleteError } = await supabase.from("teams").delete().eq("game_id", gameId);
+  if (deleteError) throw deleteError;
+
+  const { data: teams, error: teamError } = await supabase
+    .from("teams")
+    .insert(cleanTeamNames.map((name, sort_order) => ({ game_id: gameId, name, sort_order })))
+    .select("*")
+    .order("sort_order");
+
+  if (teamError) throw teamError;
+
+  const firstTeam = (teams as Team[])[0];
+  const { error: gameError } = await supabase
+    .from("games")
+    .update({ prompts_per_player: cleanPromptsPerPlayer, phase: "lobby" })
+    .eq("id", gameId);
+
+  if (gameError) throw gameError;
+
+  const { error: hostError } = await supabase.from("players").update({ team_id: firstTeam.id }).eq("game_id", gameId).eq("is_host", true);
+  if (hostError) throw hostError;
+}
+
 export async function joinGame(code: string, playerName: string) {
   ensureSupabaseConfig();
   const { data: game, error: gameError } = await supabase
@@ -75,6 +101,7 @@ export async function joinGame(code: string, playerName: string) {
     .single<Game>();
 
   if (gameError) throw new Error("No game found for that code.");
+  if (game.phase === "setup") throw new Error("The host is still setting up this game.");
 
   const { data: teams, error: teamError } = await supabase
     .from("teams")
@@ -147,9 +174,23 @@ export async function updatePlayerName(playerId: string, name: string) {
 export async function submitPrompts(gameId: string, playerId: string, prompts: string[]) {
   ensureSupabaseConfig();
   const cleanPrompts = prompts.map((prompt) => prompt.trim()).filter(Boolean);
-  if (cleanPrompts.length > 0) {
+  const { data: game, error: gameError } = await supabase.from("games").select("*").eq("id", gameId).single<Game>();
+  if (gameError) throw gameError;
+
+  const { count, error: countError } = await supabase
+    .from("prompts")
+    .select("id", { count: "exact", head: true })
+    .eq("game_id", gameId)
+    .eq("player_id", playerId);
+
+  if (countError) throw countError;
+
+  const slotsLeft = Math.max(0, game.prompts_per_player - (count ?? 0));
+  const promptsToInsert = cleanPrompts.slice(0, slotsLeft);
+
+  if (promptsToInsert.length > 0) {
     const { error: promptError } = await supabase.from("prompts").insert(
-      cleanPrompts.map((text) => ({
+      promptsToInsert.map((text) => ({
         game_id: gameId,
         player_id: playerId,
         text
@@ -158,12 +199,24 @@ export async function submitPrompts(gameId: string, playerId: string, prompts: s
     if (promptError) throw promptError;
   }
 
-  const { error: playerError } = await supabase.from("players").update({ has_submitted: true }).eq("id", playerId);
+  const nextPromptCount = (count ?? 0) + promptsToInsert.length;
+  const { error: playerError } = await supabase
+    .from("players")
+    .update({ has_submitted: nextPromptCount >= game.prompts_per_player })
+    .eq("id", playerId);
   if (playerError) throw playerError;
 }
 
 export async function startGame(snapshot: GameSnapshot) {
   ensureSupabaseConfig();
+  const unreadyPlayer = snapshot.players.find(
+    (player) => !hasPlayerSubmitted(player.id, snapshot.prompts, snapshot.game.prompts_per_player)
+  );
+
+  if (unreadyPlayer) {
+    throw new Error(`${unreadyPlayer.name} still needs to submit prompts.`);
+  }
+
   const shuffledPrompts = shuffle(snapshot.prompts);
   const playersWithTeams = snapshot.players.filter((player) => player.team_id);
   const activePlayer = playersWithTeams[0];

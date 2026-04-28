@@ -50,9 +50,7 @@ export default function Home() {
           <span className="eyebrow">Monikers-style MVP</span>
           <h1>Prompt Party</h1>
         </div>
-        <p>
-          Start a room, invite phones with a short code, collect prompts, then pass turns around the table.
-        </p>
+        <p>Set up teams and prompt count, invite phones with a short code, then pass timed turns around the table.</p>
       </section>
 
       <div className="split">
