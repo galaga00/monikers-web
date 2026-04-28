@@ -1,4 +1,5 @@
 import { TMDB_DECK } from "./tmdb-deck";
+import { WIKIPEDIA_DECK } from "./wikipedia-deck";
 
 export type StarterDeckCard = {
   id: string;
@@ -101,4 +102,4 @@ const CORE_DECK: StarterDeckCard[] = [
   { id: "zombie-apocalypse", title: "Zombie Apocalypse", description: "A survival scenario with slow monsters, barricades, supplies, and questionable group decisions." }
 ];
 
-export const STARTER_DECK: StarterDeckCard[] = [...CORE_DECK, ...TMDB_DECK];
+export const STARTER_DECK: StarterDeckCard[] = [...CORE_DECK, ...TMDB_DECK, ...WIKIPEDIA_DECK];
