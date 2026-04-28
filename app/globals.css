@@ -361,6 +361,11 @@ a {
   cursor: pointer;
 }
 
+.team-choice.selected {
+  border-color: var(--accent);
+  background: #e8f5f2;
+}
+
 .team-choice strong {
   font-size: 1.1rem;
 }
@@ -368,6 +373,32 @@ a {
 .team-choice span {
   color: var(--muted);
   font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.player-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.player-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.team-select {
+  max-width: 120px;
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  color: var(--ink);
+  padding: 5px 7px;
+  font-size: 0.82rem;
   font-weight: 800;
 }
 

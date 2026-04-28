@@ -189,7 +189,7 @@ export async function updatePlayerName(playerId: string, name: string) {
   if (error) throw error;
 }
 
-export async function chooseTeam(playerId: string, teamId: string) {
+export async function assignPlayerToTeam(playerId: string, teamId: string) {
   ensureSupabaseConfig();
   const { error } = await supabase.from("players").update({ team_id: teamId }).eq("id", playerId);
   if (error) throw error;

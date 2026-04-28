@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
-  chooseTeam,
+  assignPlayerToTeam,
   endTurn,
   joinGame,
   loadSnapshot,
@@ -150,7 +150,11 @@ export default function GamePage() {
 
   async function handleChooseTeam(teamId: string) {
     if (!me) return;
-    await runAction(() => chooseTeam(me.id, teamId));
+    await runAction(() => assignPlayerToTeam(me.id, teamId));
+  }
+
+  async function handleAssignPlayerToTeam(playerId: string, teamId: string) {
+    await runAction(() => assignPlayerToTeam(playerId, teamId));
   }
 
   function handleTeamCountChange(nextCount: number) {
@@ -252,6 +256,7 @@ export default function GamePage() {
           onNameSave={handleNameSave}
           onPromptSubmit={handleSubmitPrompts}
           onChooseTeam={handleChooseTeam}
+          onAssignPlayerToTeam={handleAssignPlayerToTeam}
           onStart={() => runAction(() => startGame(snapshot))}
         />
       ) : (
@@ -438,6 +443,7 @@ function Lobby({
   onNameSave,
   onPromptSubmit,
   onChooseTeam,
+  onAssignPlayerToTeam,
   onStart
 }: {
   snapshot: GameSnapshot;
@@ -453,6 +459,7 @@ function Lobby({
   onNameSave: (event: FormEvent<HTMLFormElement>) => void;
   onPromptSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onChooseTeam: (teamId: string) => void;
+  onAssignPlayerToTeam: (playerId: string, teamId: string) => void;
   onStart: () => void;
 }) {
   const myPromptCount = getPromptCountForPlayer(me.id, snapshot.prompts);
@@ -462,7 +469,8 @@ function Lobby({
     .map((line) => line.trim())
     .filter(Boolean).length;
   const canSubmitPrompts = myPromptsLeft > 0 && pendingPromptLines > 0;
-  const needsTeam = snapshot.game.team_assignment_mode === "choose" && !me.team_id;
+  const canSelfSwitchTeams = snapshot.game.team_assignment_mode === "choose";
+  const needsTeam = canSelfSwitchTeams && !me.team_id;
   const allPlayersHaveTeams = snapshot.players.every((player) => Boolean(player.team_id));
   const canStart = promptProgress.isComplete && allPlayersHaveTeams;
 
@@ -479,17 +487,17 @@ function Lobby({
             ? ` Expected total: ${promptProgress.expectedTotal}.`
             : ""}
         </p>
-        <TeamRosters snapshot={snapshot} me={me} />
+        <TeamRosters snapshot={snapshot} me={me} isHost={isHost} busy={busy} onAssignPlayerToTeam={onAssignPlayerToTeam} />
       </section>
 
-      {needsTeam ? (
+      {canSelfSwitchTeams ? (
         <section className="card stack">
-          <h2>Choose your team</h2>
+          <h2>{needsTeam ? "Choose your team" : "Switch team"}</h2>
           <div className="team-choice-grid">
             {snapshot.teams.map((team) => (
-              <button className="team-choice" key={team.id} onClick={() => onChooseTeam(team.id)} disabled={busy}>
+              <button className={me.team_id === team.id ? "team-choice selected" : "team-choice"} key={team.id} onClick={() => onChooseTeam(team.id)} disabled={busy || me.team_id === team.id}>
                 <strong>{team.name}</strong>
-                <span>{getTeamRoster(team.id, snapshot.players).length} players</span>
+                <span>{me.team_id === team.id ? "Your team" : `${getTeamRoster(team.id, snapshot.players).length} players`}</span>
               </button>
             ))}
           </div>
@@ -554,7 +562,19 @@ function Lobby({
   );
 }
 
-function TeamRosters({ snapshot, me }: { snapshot: GameSnapshot; me: Player }) {
+function TeamRosters({
+  snapshot,
+  me,
+  isHost,
+  busy,
+  onAssignPlayerToTeam
+}: {
+  snapshot: GameSnapshot;
+  me: Player;
+  isHost: boolean;
+  busy: boolean;
+  onAssignPlayerToTeam: (playerId: string, teamId: string) => void;
+}) {
   const unassignedPlayers = snapshot.players.filter((player) => !player.team_id);
 
   return (
@@ -570,13 +590,14 @@ function TeamRosters({ snapshot, me }: { snapshot: GameSnapshot; me: Player }) {
             <ul className="list">
               {roster.map((player) => (
                 <li className="list-item compact" key={player.id}>
-                  <span>
-                    {player.name}
-                    {player.id === me.id ? " (you)" : ""}
-                  </span>
-                  <span className={hasPlayerSubmitted(player.id, snapshot.prompts, snapshot.game.prompts_per_player) ? "pill" : "pill pending"}>
-                    {getPromptCountForPlayer(player.id, snapshot.prompts)} / {snapshot.game.prompts_per_player}
-                  </span>
+                  <PlayerLobbyRow
+                    busy={busy}
+                    isHost={isHost}
+                    me={me}
+                    player={player}
+                    snapshot={snapshot}
+                    onAssignPlayerToTeam={onAssignPlayerToTeam}
+                  />
                 </li>
               ))}
             </ul>
@@ -592,16 +613,66 @@ function TeamRosters({ snapshot, me }: { snapshot: GameSnapshot; me: Player }) {
           <ul className="list">
             {unassignedPlayers.map((player) => (
               <li className="list-item compact" key={player.id}>
-                <span>
-                  {player.name}
-                  {player.id === me.id ? " (you)" : ""}
-                </span>
-                <span className="pill pending">No team</span>
+                <PlayerLobbyRow
+                  busy={busy}
+                  isHost={isHost}
+                  me={me}
+                  player={player}
+                  snapshot={snapshot}
+                  onAssignPlayerToTeam={onAssignPlayerToTeam}
+                />
               </li>
             ))}
           </ul>
         </section>
       ) : null}
+    </div>
+  );
+}
+
+function PlayerLobbyRow({
+  busy,
+  isHost,
+  me,
+  player,
+  snapshot,
+  onAssignPlayerToTeam
+}: {
+  busy: boolean;
+  isHost: boolean;
+  me: Player;
+  player: Player;
+  snapshot: GameSnapshot;
+  onAssignPlayerToTeam: (playerId: string, teamId: string) => void;
+}) {
+  return (
+    <div className="player-row">
+      <span>
+        {player.name}
+        {player.id === me.id ? " (you)" : ""}
+      </span>
+      <div className="player-row-actions">
+        <span className={hasPlayerSubmitted(player.id, snapshot.prompts, snapshot.game.prompts_per_player) ? "pill" : "pill pending"}>
+          {player.team_id ? `${getPromptCountForPlayer(player.id, snapshot.prompts)} / ${snapshot.game.prompts_per_player}` : "No team"}
+        </span>
+        {isHost ? (
+          <select
+            className="team-select"
+            disabled={busy}
+            value={player.team_id ?? ""}
+            onChange={(event) => onAssignPlayerToTeam(player.id, event.target.value)}
+          >
+            <option value="" disabled>
+              Move
+            </option>
+            {snapshot.teams.map((team) => (
+              <option key={team.id} value={team.id}>
+                {team.name}
+              </option>
+            ))}
+          </select>
+        ) : null}
+      </div>
     </div>
   );
 }
