@@ -4,7 +4,7 @@ export type StarterDeckCard = {
   description: string;
 };
 
-export const STARTER_DECK: StarterDeckCard[] = [
+const CORE_DECK: StarterDeckCard[] = [
   { id: "amelia-earhart", title: "Amelia Earhart", description: "A pioneering pilot who became famous for record-setting flights and her mysterious disappearance over the Pacific." },
   { id: "apollo-11", title: "Apollo 11", description: "The NASA mission that first landed humans on the Moon in 1969." },
   { id: "beyonce", title: "Beyonce", description: "A global pop star known for huge concerts, precise choreography, and songs like Single Ladies and Halo." },
@@ -98,3 +98,60 @@ export const STARTER_DECK: StarterDeckCard[] = [
   { id: "yoga-class", title: "Yoga Class", description: "A group exercise session with poses, breathing, mats, and people trying not to fall over." },
   { id: "zombie-apocalypse", title: "Zombie Apocalypse", description: "A survival scenario with slow monsters, barricades, supplies, and questionable group decisions." }
 ];
+
+const DRAFT_SUBJECTS = [
+  { id: "astronaut", title: "An Astronaut", description: "a space explorer in a bulky suit, dealing with zero gravity and mission control" },
+  { id: "baker", title: "A Baker", description: "someone covered in flour, juggling ovens, dough, frosting, and impossible timing" },
+  { id: "ballerina", title: "A Ballerina", description: "a graceful dancer trying to keep perfect balance through an inconvenient situation" },
+  { id: "barista", title: "A Barista", description: "a coffee expert managing orders, foam, names, and a long line of impatient customers" },
+  { id: "bodybuilder", title: "A Bodybuilder", description: "a very strong person who makes even ordinary tasks look dramatic" },
+  { id: "camp-counselor", title: "A Camp Counselor", description: "an energetic leader trying to keep campers organized, entertained, and mostly safe" },
+  { id: "cat-burglar", title: "A Cat Burglar", description: "a sneaky thief tiptoeing through alarms, windows, and very creaky floors" },
+  { id: "celebrity", title: "A Celebrity", description: "a famous person being watched, photographed, and asked for attention everywhere" },
+  { id: "cowboy", title: "A Cowboy", description: "a western rider with boots, a hat, and a habit of making things sound rugged" },
+  { id: "detective", title: "A Detective", description: "a mystery solver looking for clues, motives, and suspiciously convenient evidence" },
+  { id: "dragon", title: "A Dragon", description: "a giant fire-breathing creature trying to behave in a surprisingly normal setting" },
+  { id: "flight-attendant", title: "A Flight Attendant", description: "a calm professional explaining rules while everyone tries to board at once" },
+  { id: "game-show-host", title: "A Game Show Host", description: "a cheerful announcer turning every small moment into a dramatic reveal" },
+  { id: "ghost", title: "A Ghost", description: "a spooky visitor who floats, haunts, and has trouble being taken seriously" },
+  { id: "gold-medalist", title: "A Gold Medalist", description: "a champion athlete treating the moment like an Olympic final" },
+  { id: "grandma", title: "A Grandma", description: "a loving elder with strong opinions, snacks, and surprising confidence" },
+  { id: "hairdresser", title: "A Hairdresser", description: "a stylist handling scissors, gossip, mirrors, and someone's risky new look" },
+  { id: "knight", title: "A Knight", description: "an armored hero trying to stay noble while everything gets awkward" },
+  { id: "librarian", title: "A Librarian", description: "a quiet authority figure surrounded by books, rules, and whispering" },
+  { id: "magician", title: "A Magician", description: "a performer making things vanish, appear, or become unnecessarily mysterious" },
+  { id: "pirate", title: "A Pirate", description: "a treasure-hunting sailor with big gestures and questionable table manners" },
+  { id: "robot", title: "A Robot", description: "a mechanical helper interpreting human life far too literally" },
+  { id: "royal", title: "A Royal", description: "a king, queen, prince, or princess expecting ceremony in an ordinary situation" },
+  { id: "scientist", title: "A Scientist", description: "a researcher testing theories, taking notes, and overexplaining the obvious" },
+  { id: "superhero", title: "A Superhero", description: "a costumed rescuer with powers, poses, and terrible timing" },
+  { id: "tour-guide", title: "A Tour Guide", description: "an enthusiastic narrator trying to keep a group moving and impressed" },
+  { id: "vampire", title: "A Vampire", description: "a dramatic immortal avoiding sunlight, mirrors, and suspicious questions" },
+  { id: "wizard", title: "A Wizard", description: "a spellcaster with robes, magic words, and unpredictable results" },
+  { id: "wrestler", title: "A Wrestler", description: "a showy competitor turning every conflict into a performance" }
+] as const;
+
+const DRAFT_ACTIONS = [
+  { id: "auditioning-for-a-musical", label: "Auditioning for a Musical", detail: "singing, posing, and trying very hard to land the part" },
+  { id: "babysitting-triplets", label: "Babysitting Triplets", detail: "handling three tiny sources of chaos at the same time" },
+  { id: "cooking-on-live-tv", label: "Cooking on Live TV", detail: "preparing food while pretending nothing is going wrong" },
+  { id: "doing-a-weather-report", label: "Doing a Weather Report", detail: "explaining the forecast with big gestures and questionable confidence" },
+  { id: "getting-a-parking-ticket", label: "Getting a Parking Ticket", detail: "reacting to an annoying little paper on the windshield" },
+  { id: "leading-a-workout-class", label: "Leading a Workout Class", detail: "counting reps, demonstrating moves, and trying to motivate everyone" },
+  { id: "losing-phone-service", label: "Losing Phone Service", detail: "searching for bars and becoming increasingly desperate to reconnect" },
+  { id: "ordering-at-a-drive-thru", label: "Ordering at a Drive-Thru", detail: "talking into a speaker that may or may not understand them" },
+  { id: "solving-a-mystery", label: "Solving a Mystery", detail: "examining clues and accusing people with dramatic certainty" },
+  { id: "trying-to-look-normal", label: "Trying to Look Normal", detail: "acting casual while everything about the situation is obviously weird" },
+  { id: "using-a-self-checkout", label: "Using a Self-Checkout", detail: "arguing with a machine about bags, barcodes, and unexpected items" },
+  { id: "winning-a-reality-show", label: "Winning a Reality Show", detail: "celebrating for the cameras after surviving manufactured drama" }
+] as const;
+
+const EXPANDED_DECK: StarterDeckCard[] = DRAFT_SUBJECTS.flatMap((subject) =>
+  DRAFT_ACTIONS.map((action) => ({
+    id: `${subject.id}-${action.id}`,
+    title: `${subject.title} ${action.label}`,
+    description: `${subject.title} is ${action.detail}; think ${subject.description}.`
+  }))
+);
+
+export const STARTER_DECK: StarterDeckCard[] = [...CORE_DECK, ...EXPANDED_DECK];
