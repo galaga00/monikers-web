@@ -6,22 +6,22 @@ export const WIKIPEDIA_DECK: StarterDeckCard[] = [
   {
     "id": "wiki-michael-jackson",
     "title": "Michael Jackson",
-    "description": "A high-viewed Wikipedia page about american singer (1958–2009)."
+    "description": "The King of Pop, known for Thriller, moonwalking, sequined gloves, and some of the most famous music videos ever made."
   },
   {
     "id": "wiki-euphoria-american-tv-series",
     "title": "Euphoria (American TV series)",
-    "description": "A high-viewed Wikipedia page about 2019 american teen drama television series."
+    "description": "A stylized teen drama starring Zendaya, known for intense storylines, glittery makeup, and a moody HBO look."
   },
   {
     "id": "wiki-project-hail-mary-film",
     "title": "Project Hail Mary (film)",
-    "description": "A high-viewed Wikipedia page about 2026 film by phil lord and christopher miller."
+    "description": "A film adaptation of Andy Weir's sci-fi novel about an astronaut trying to save Earth from a cosmic disaster."
   },
   {
     "id": "wiki-jaafar-jackson",
     "title": "Jaafar Jackson",
-    "description": "A high-viewed Wikipedia page about american singer and actor (born 1996)."
+    "description": "A singer and actor from the Jackson family who plays Michael Jackson in the biographical film Michael."
   },
   {
     "id": "wiki-the-boys",
@@ -31,127 +31,127 @@ export const WIKIPEDIA_DECK: StarterDeckCard[] = [
   {
     "id": "wiki-bhooth-bangla",
     "title": "Bhooth Bangla",
-    "description": "A high-viewed Wikipedia page about 2026 indian film by priyadarshan."
+    "description": "An Indian horror-comedy film from director Priyadarshan starring Akshay Kumar."
   },
   {
     "id": "wiki-d4vd",
     "title": "D4vd",
-    "description": "A high-viewed Wikipedia page about american singer-songwriter (born 2005)."
+    "description": "A singer-songwriter known for moody viral hits like Romantic Homicide and Here With Me."
   },
   {
     "id": "wiki-jermaine-jackson",
     "title": "Jermaine Jackson",
-    "description": "A high-viewed Wikipedia page about american singer and songwriter (born 1954)."
+    "description": "A singer, bassist, and member of the Jackson 5, part of the famous Jackson music family."
   },
   {
     "id": "wiki-justin-bieber",
     "title": "Justin Bieber",
-    "description": "A high-viewed Wikipedia page about canadian singer (born 1994)."
+    "description": "A Canadian pop star who broke out as a teen with Baby and later had hits like Sorry, Peaches, and Love Yourself."
   },
   {
     "id": "wiki-charlize-theron",
     "title": "Charlize Theron",
-    "description": "A high-viewed Wikipedia page about south african and american actress (born 1975)."
+    "description": "An Oscar-winning actor known for Mad Max: Fury Road, Monster, Atomic Blonde, and action-heavy roles."
   },
   {
     "id": "wiki-cristiano-ronaldo",
     "title": "Cristiano Ronaldo",
-    "description": "A high-viewed Wikipedia page about portuguese footballer (born 1985)."
+    "description": "A Portuguese soccer superstar known for goals, Champions League trophies, and his signature Siu celebration."
   },
   {
     "id": "wiki-meryl-streep",
     "title": "Meryl Streep",
-    "description": "A high-viewed Wikipedia page about american actress (born 1949)."
+    "description": "A highly decorated actor known for roles in The Devil Wears Prada, Mamma Mia!, Sophie's Choice, and many Oscar nominations."
   },
   {
     "id": "wiki-anthropic",
     "title": "Anthropic",
-    "description": "A high-viewed Wikipedia page about us-based ai company."
+    "description": "An AI company best known for making Claude, a chatbot and language model family."
   },
   {
     "id": "wiki-janet-jackson",
     "title": "Janet Jackson",
-    "description": "A high-viewed Wikipedia page about american singer (born 1966)."
+    "description": "A pop and R&B star known for Rhythm Nation, Control, elaborate choreography, and the Jackson family legacy."
   },
   {
     "id": "wiki-diego-pavia",
     "title": "Diego Pavia",
-    "description": "A high-viewed Wikipedia page about american football player (born 2002)."
+    "description": "An American football quarterback known for his college football career and dual-threat playing style."
   },
   {
     "id": "wiki-robin-williams",
     "title": "Robin Williams",
-    "description": "A high-viewed Wikipedia page about american actor and comedian (1951–2014)."
+    "description": "A beloved actor and comedian known for Mrs. Doubtfire, Aladdin, Good Will Hunting, and rapid-fire improv."
   },
   {
     "id": "wiki-olivia-rodrigo",
     "title": "Olivia Rodrigo",
-    "description": "A high-viewed Wikipedia page about american singer-songwriter and actress (born 2003)."
+    "description": "A singer-songwriter and actor known for Drivers License, Good 4 U, Vampire, and the albums Sour and Guts."
   },
   {
     "id": "wiki-fifa-world-cup",
     "title": "FIFA World Cup",
-    "description": "A high-viewed Wikipedia page about football tournament."
+    "description": "The global soccer tournament held every four years, where national teams compete for the sport's biggest trophy."
   },
   {
     "id": "wiki-bts",
     "title": "BTS",
-    "description": "A high-viewed Wikipedia page about south korean boy band."
+    "description": "A South Korean pop group with a massive global fanbase, known for songs like Dynamite and Butter."
   },
   {
     "id": "wiki-clayface",
     "title": "Clayface",
-    "description": "A high-viewed Wikipedia page about fictional character."
+    "description": "A shape-shifting Batman villain usually made of living clay or mud."
   },
   {
     "id": "wiki-invincible-comics",
     "title": "Invincible (comics)",
-    "description": "A high-viewed Wikipedia page about comic book series."
+    "description": "A superhero comic about Mark Grayson, whose father Omni-Man is not exactly the hero he seems to be."
   },
   {
     "id": "wiki-witch-hat-atelier",
     "title": "Witch Hat Atelier",
-    "description": "A high-viewed Wikipedia page about japanese manga series."
+    "description": "A fantasy manga series about a girl who discovers the hidden rules and dangers of magic."
   },
   {
     "id": "wiki-david-bowie",
     "title": "David Bowie",
-    "description": "A high-viewed Wikipedia page about english musician and actor (1947–2016)."
+    "description": "A genre-shifting musician and actor known for Ziggy Stardust, Space Oddity, Heroes, and Labyrinth."
   },
   {
     "id": "wiki-brad-pitt",
     "title": "Brad Pitt",
-    "description": "A high-viewed Wikipedia page about american actor (born 1963)."
+    "description": "A movie star known for Fight Club, Ocean's Eleven, Once Upon a Time in Hollywood, and lots of effortless charm."
   },
   {
     "id": "wiki-billie-eilish",
     "title": "Billie Eilish",
-    "description": "A high-viewed Wikipedia page about american singer-songwriter (born 2001)."
+    "description": "A singer-songwriter known for whispery vocals, Bad Guy, Ocean Eyes, and a dark alt-pop style."
   },
   {
     "id": "wiki-harry-styles",
     "title": "Harry Styles",
-    "description": "A high-viewed Wikipedia page about english singer, songwriter and actor (born 1994)."
+    "description": "A singer and actor who started in One Direction and later had solo hits like Watermelon Sugar and As It Was."
   },
   {
     "id": "wiki-marilyn-monroe",
     "title": "Marilyn Monroe",
-    "description": "A high-viewed Wikipedia page about american actress and model (1926–1962)."
+    "description": "A classic Hollywood star and pop-culture icon known for glamour, comedy roles, and the white dress subway-grate image."
   },
   {
     "id": "wiki-bob-dylan",
     "title": "Bob Dylan",
-    "description": "A high-viewed Wikipedia page about american singer-songwriter (born 1941)."
+    "description": "A legendary singer-songwriter known for Blowin' in the Wind, Like a Rolling Stone, and poetic folk-rock lyrics."
   },
   {
     "id": "wiki-kobe-bryant",
     "title": "Kobe Bryant",
-    "description": "A high-viewed Wikipedia page about american basketball player (1978–2020)."
+    "description": "A Los Angeles Lakers legend known for five NBA championships, the Mamba Mentality, and a relentless work ethic."
   },
   {
     "id": "wiki-cher",
     "title": "Cher",
-    "description": "A high-viewed Wikipedia page about american singer and actress (born 1946)."
+    "description": "A singer and actor known for Believe, If I Could Turn Back Time, huge costumes, and decades of reinvention."
   },
   {
     "id": "wiki-mortal-kombat",
@@ -161,27 +161,27 @@ export const WIKIPEDIA_DECK: StarterDeckCard[] = [
   {
     "id": "wiki-jack-white",
     "title": "Jack White",
-    "description": "A high-viewed Wikipedia page about american musician and producer (born 1975)."
+    "description": "A guitarist and singer known for The White Stripes, Seven Nation Army, and a raw garage-rock sound."
   },
   {
     "id": "wiki-pursuit-of-jade",
     "title": "Pursuit of Jade",
-    "description": "A high-viewed Wikipedia page about 2026 chinese television series."
+    "description": "A Chinese television drama centered on intrigue, romance, and period-style storytelling."
   },
   {
     "id": "wiki-sinitta",
     "title": "Sinitta",
-    "description": "A high-viewed Wikipedia page about american-british singer (born 1963)."
+    "description": "A pop singer and TV personality known for 1980s dance-pop hits like So Macho."
   },
   {
     "id": "wiki-nikki-glaser",
     "title": "Nikki Glaser",
-    "description": "A high-viewed Wikipedia page about american comedian (born 1984)."
+    "description": "A stand-up comedian and TV host known for sharp roast-style comedy."
   },
   {
     "id": "wiki-john-lennon",
     "title": "John Lennon",
-    "description": "A high-viewed Wikipedia page about english musician, songwriter and activist (1940–1980)."
+    "description": "A Beatles member and solo artist known for Imagine, peace activism, and writing songs with Paul McCartney."
   },
   {
     "id": "wiki-hells-kitchen",
@@ -191,26 +191,26 @@ export const WIKIPEDIA_DECK: StarterDeckCard[] = [
   {
     "id": "wiki-enya",
     "title": "Enya",
-    "description": "A high-viewed Wikipedia page about irish singer (born 1961)."
+    "description": "An Irish singer known for dreamy layered vocals, Orinoco Flow, and lush new-age pop soundscapes."
   },
   {
     "id": "wiki-fleetwood-mac",
     "title": "Fleetwood Mac",
-    "description": "A high-viewed Wikipedia page about british and american rock band."
+    "description": "A rock band known for Rumours, Dreams, Go Your Own Way, and the Stevie Nicks and Lindsey Buckingham era."
   },
   {
     "id": "wiki-megan-thee-stallion",
     "title": "Megan Thee Stallion",
-    "description": "A high-viewed Wikipedia page about american rapper and songwriter (born 1995)."
+    "description": "A rapper known for Hot Girl Summer, Savage, Body, and confident Houston-flavored bars."
   },
   {
     "id": "wiki-kevin-durant",
     "title": "Kevin Durant",
-    "description": "A high-viewed Wikipedia page about american basketball player (born 1988)."
+    "description": "An NBA superstar scorer known for his height, smooth shooting, MVP award, and championship runs."
   },
   {
     "id": "wiki-eminem",
     "title": "Eminem",
-    "description": "A high-viewed Wikipedia page about american rapper (born 1972)."
+    "description": "A rapper known for rapid-fire lyrics, The Real Slim Shady, Lose Yourself, and his alter ego Slim Shady."
   }
 ];
