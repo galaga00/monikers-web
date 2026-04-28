@@ -12,6 +12,7 @@ export type Game = {
   current_prompt_id: string | null;
   turn_number: number;
   round_number: number;
+  turn_duration_seconds: number;
   prompts_per_player: number;
   cards_dealt_per_player: number;
   cards_kept_per_player: number;

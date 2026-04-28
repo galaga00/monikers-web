@@ -26,6 +26,8 @@ import {
   DEFAULT_CARDS_KEPT_PER_PLAYER,
   DEFAULT_TEAM_COUNT,
   DEFAULT_TEAM_ASSIGNMENT_MODE,
+  TURN_DURATION_OPTIONS,
+  TURN_DURATION_SECONDS,
   getDraftSelectedCountForPlayer,
   getLegacyPlayerStorageKey,
   getPlayerStorageKey,
@@ -49,6 +51,7 @@ export default function GamePage() {
   const [promptText, setPromptText] = useState("");
   const [categoryPromptValues, setCategoryPromptValues] = useState<string[]>([]);
   const [promptsPerPlayer, setPromptsPerPlayer] = useState(DEFAULT_PROMPTS_PER_PLAYER);
+  const [turnDurationSeconds, setTurnDurationSeconds] = useState(TURN_DURATION_SECONDS);
   const [cardsDealtPerPlayer, setCardsDealtPerPlayer] = useState(DEFAULT_CARDS_DEALT_PER_PLAYER);
   const [cardsKeptPerPlayer, setCardsKeptPerPlayer] = useState(DEFAULT_CARDS_KEPT_PER_PLAYER);
   const [teamCount, setTeamCount] = useState(DEFAULT_TEAM_COUNT);
@@ -179,7 +182,8 @@ export default function GamePage() {
         promptMode,
         expectedPlayers ? Math.max(minimumExpectedPlayers, Number(expectedPlayers)) : null,
         cardsDealtPerPlayer,
-        cardsKeptPerPlayer
+        cardsKeptPerPlayer,
+        turnDurationSeconds
       )
     );
   }
@@ -272,6 +276,8 @@ export default function GamePage() {
           isHost={isHost}
           promptsPerPlayer={promptsPerPlayer}
           setPromptsPerPlayer={setPromptsPerPlayer}
+          turnDurationSeconds={turnDurationSeconds}
+          setTurnDurationSeconds={setTurnDurationSeconds}
           cardsDealtPerPlayer={cardsDealtPerPlayer}
           setCardsDealtPerPlayer={setCardsDealtPerPlayer}
           cardsKeptPerPlayer={cardsKeptPerPlayer}
@@ -333,6 +339,8 @@ function Setup({
   isHost,
   promptsPerPlayer,
   setPromptsPerPlayer,
+  turnDurationSeconds,
+  setTurnDurationSeconds,
   cardsDealtPerPlayer,
   setCardsDealtPerPlayer,
   cardsKeptPerPlayer,
@@ -353,6 +361,8 @@ function Setup({
   isHost: boolean;
   promptsPerPlayer: number;
   setPromptsPerPlayer: (count: number) => void;
+  turnDurationSeconds: number;
+  setTurnDurationSeconds: (seconds: number) => void;
   cardsDealtPerPlayer: number;
   setCardsDealtPerPlayer: (count: number) => void;
   cardsKeptPerPlayer: number;
@@ -440,6 +450,21 @@ function Setup({
               Players choose
             </button>
           </div>
+        </div>
+      </div>
+      <div className="field">
+        <label>Turn timer</label>
+        <div className="segmented">
+          {TURN_DURATION_OPTIONS.map((seconds) => (
+            <button
+              className={turnDurationSeconds === seconds ? "segment active" : "segment"}
+              type="button"
+              key={seconds}
+              onClick={() => setTurnDurationSeconds(seconds)}
+            >
+              {seconds}s
+            </button>
+          ))}
         </div>
       </div>
       <div className="field">
@@ -886,7 +911,7 @@ function Play({
   const isActive = me.id === activePlayer?.id;
   const [now, setNow] = useState(Date.now());
   const [autoEndedTurnId, setAutoEndedTurnId] = useState<string | null>(null);
-  const secondsLeft = getTurnSecondsLeft(snapshot.activeTurn?.started_at, now);
+  const secondsLeft = getTurnSecondsLeft(snapshot.activeTurn?.started_at, snapshot.game.turn_duration_seconds, now);
   const isTurnRunning = snapshot.game.phase === "playing";
 
   useEffect(() => {
@@ -923,6 +948,7 @@ function Play({
         </div>
         <div className="round-meta">
           <span>Turn {snapshot.game.turn_number}</span>
+          <span>{snapshot.game.turn_duration_seconds}s timer</span>
           <span>{activePlayer?.name ?? "Someone"} is up</span>
         </div>
         {snapshot.game.phase === "ready" ? (

@@ -9,6 +9,8 @@ import {
   DEFAULT_CARDS_KEPT_PER_PLAYER,
   DEFAULT_PROMPTS_PER_PLAYER,
   DEFAULT_TEAM_ASSIGNMENT_MODE,
+  TURN_DURATION_OPTIONS,
+  TURN_DURATION_SECONDS,
   getFirstTurnAssignment,
   getNextTurnAssignment,
   hasPlayerDrafted,
@@ -35,6 +37,7 @@ export async function createGame(hostName: string) {
         code: createJoinCode(),
         phase: "setup",
         prompts_per_player: DEFAULT_PROMPTS_PER_PLAYER,
+        turn_duration_seconds: TURN_DURATION_SECONDS,
         cards_dealt_per_player: DEFAULT_CARDS_DEALT_PER_PLAYER,
         cards_kept_per_player: DEFAULT_CARDS_KEPT_PER_PLAYER,
         team_assignment_mode: DEFAULT_TEAM_ASSIGNMENT_MODE,
@@ -83,7 +86,8 @@ export async function saveGameSetup(
   promptMode: PromptMode,
   expectedPlayers?: number | null,
   cardsDealtPerPlayer = DEFAULT_CARDS_DEALT_PER_PLAYER,
-  cardsKeptPerPlayer = DEFAULT_CARDS_KEPT_PER_PLAYER
+  cardsKeptPerPlayer = DEFAULT_CARDS_KEPT_PER_PLAYER,
+  turnDurationSeconds = TURN_DURATION_SECONDS
 ) {
   ensureSupabaseConfig();
   const cleanPromptsPerPlayer = Math.min(20, Math.max(1, Math.round(promptsPerPlayer)));
@@ -94,6 +98,9 @@ export async function saveGameSetup(
   );
   const cleanTeamNames = teamNames.map((name, index) => name.trim() || `Team ${index + 1}`).slice(0, 12);
   const cleanExpectedPlayers = expectedPlayers ? Math.min(200, Math.max(1, Math.round(expectedPlayers))) : null;
+  const cleanTurnDurationSeconds = TURN_DURATION_OPTIONS.includes(turnDurationSeconds as (typeof TURN_DURATION_OPTIONS)[number])
+    ? turnDurationSeconds
+    : TURN_DURATION_SECONDS;
 
   if (cleanTeamNames.length < 1) throw new Error("Add at least one team.");
 
@@ -119,6 +126,7 @@ export async function saveGameSetup(
     .from("games")
     .update({
       prompts_per_player: cleanPromptsPerPlayer,
+      turn_duration_seconds: cleanTurnDurationSeconds,
       cards_dealt_per_player: cleanCardsDealtPerPlayer,
       cards_kept_per_player: cleanCardsKeptPerPlayer,
       expected_players: cleanExpectedPlayers,

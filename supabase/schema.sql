@@ -10,6 +10,7 @@ create table if not exists public.games (
   current_prompt_id uuid,
   turn_number integer not null default 0,
   round_number integer not null default 1,
+  turn_duration_seconds integer not null default 60,
   prompts_per_player integer not null default 3,
   cards_dealt_per_player integer not null default 10,
   cards_kept_per_player integer not null default 5,
@@ -97,6 +98,7 @@ create index if not exists draft_cards_game_player_idx on public.draft_cards(gam
 create index if not exists turns_game_id_active_idx on public.turns(game_id, ended_at);
 
 alter table public.games add column if not exists prompts_per_player integer not null default 3;
+alter table public.games add column if not exists turn_duration_seconds integer not null default 60;
 alter table public.games add column if not exists cards_dealt_per_player integer not null default 10;
 alter table public.games add column if not exists cards_kept_per_player integer not null default 5;
 alter table public.games add column if not exists expected_players integer;
@@ -116,6 +118,10 @@ begin
     alter table public.games drop constraint games_prompts_per_player_check;
   end if;
   alter table public.games add constraint games_prompts_per_player_check check (prompts_per_player between 1 and 20);
+  if exists (select 1 from pg_constraint where conname = 'games_turn_duration_seconds_check') then
+    alter table public.games drop constraint games_turn_duration_seconds_check;
+  end if;
+  alter table public.games add constraint games_turn_duration_seconds_check check (turn_duration_seconds in (30, 60));
   if exists (select 1 from pg_constraint where conname = 'games_cards_dealt_per_player_check') then
     alter table public.games drop constraint games_cards_dealt_per_player_check;
   end if;

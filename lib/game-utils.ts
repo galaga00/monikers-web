@@ -2,6 +2,7 @@ import type { GameSnapshot, Player, Prompt, Team } from "./types";
 
 export const ROUND_NAMES = ["Any Words", "One Word", "Charades"] as const;
 export const TURN_DURATION_SECONDS = 60;
+export const TURN_DURATION_OPTIONS = [60, 30] as const;
 export const DEFAULT_TEAM_COUNT = 2;
 export const DEFAULT_PROMPTS_PER_PLAYER = 3;
 export const DEFAULT_CARDS_DEALT_PER_PLAYER = 10;
@@ -147,8 +148,8 @@ export function isFinalRound(roundNumber: number) {
   return roundNumber >= ROUND_NAMES.length;
 }
 
-export function getTurnSecondsLeft(startedAt: string | null | undefined, now = Date.now()) {
-  if (!startedAt) return TURN_DURATION_SECONDS;
+export function getTurnSecondsLeft(startedAt: string | null | undefined, durationSeconds = TURN_DURATION_SECONDS, now = Date.now()) {
+  if (!startedAt) return durationSeconds;
   const elapsedSeconds = Math.floor((now - new Date(startedAt).getTime()) / 1000);
-  return Math.max(0, TURN_DURATION_SECONDS - elapsedSeconds);
+  return Math.max(0, durationSeconds - elapsedSeconds);
 }
