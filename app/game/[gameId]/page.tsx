@@ -430,39 +430,37 @@ function Setup({
           <input
             className="input"
             id="expectedPlayers"
+            inputMode="numeric"
             min={1}
             max={200}
-            type="number"
+            pattern="[0-9]*"
+            type="text"
             value={expectedPlayers}
-            onChange={(event) => setExpectedPlayers(event.target.value)}
+            onChange={(event) => setExpectedPlayers(event.target.value.replace(/\D/g, ""))}
             placeholder="Optional"
           />
         </div>
         <div className="field">
           <label htmlFor="teamCount">Teams</label>
-          <input
-            className="input"
+          <MobileNumberInput
             id="teamCount"
             min={1}
             max={12}
-            type="number"
             value={teamCount}
-            onChange={(event) => setTeamCount(Number(event.target.value))}
+            onValueChange={setTeamCount}
           />
         </div>
       </div>
       <div className="split">
         <div className="field">
           <label htmlFor="promptCount">Prompts per player</label>
-          <input
-            className="input"
+          <MobileNumberInput
+            disabled={promptMode === "deck"}
             id="promptCount"
             min={1}
             max={20}
-            type="number"
             value={promptsPerPlayer}
-            disabled={promptMode === "deck"}
-            onChange={(event) => setPromptsPerPlayer(Math.min(20, Math.max(1, Number(event.target.value))))}
+            onValueChange={setPromptsPerPlayer}
           />
         </div>
         <div className="field">
@@ -518,30 +516,23 @@ function Setup({
         <div className="split">
           <div className="field">
             <label htmlFor="cardsDealt">Cards dealt</label>
-            <input
-              className="input"
+            <MobileNumberInput
               id="cardsDealt"
               min={1}
               max={20}
-              type="number"
               value={cardsDealtPerPlayer}
-              onChange={(event) => {
-                const nextCount = Math.min(20, Math.max(1, Number(event.target.value)));
-                setCardsDealtPerPlayer(nextCount);
-                setCardsKeptPerPlayer(Math.min(cardsKeptPerPlayer, nextCount));
-              }}
+              onCommit={(nextCount) => setCardsKeptPerPlayer(Math.min(cardsKeptPerPlayer, nextCount))}
+              onValueChange={setCardsDealtPerPlayer}
             />
           </div>
           <div className="field">
             <label htmlFor="cardsKept">Cards kept</label>
-            <input
-              className="input"
+            <MobileNumberInput
               id="cardsKept"
               min={1}
               max={cardsDealtPerPlayer}
-              type="number"
               value={cardsKeptPerPlayer}
-              onChange={(event) => setCardsKeptPerPlayer(Math.min(cardsDealtPerPlayer, Math.max(1, Number(event.target.value))))}
+              onValueChange={setCardsKeptPerPlayer}
             />
           </div>
         </div>
@@ -567,6 +558,68 @@ function Setup({
         Create lobby
       </button>
     </form>
+  );
+}
+
+function MobileNumberInput({
+  disabled = false,
+  id,
+  max,
+  min,
+  onCommit,
+  onValueChange,
+  value
+}: {
+  disabled?: boolean;
+  id: string;
+  max: number;
+  min: number;
+  onCommit?: (value: number) => void;
+  onValueChange: (value: number) => void;
+  value: number;
+}) {
+  const [draftValue, setDraftValue] = useState(String(value));
+
+  useEffect(() => {
+    setDraftValue(String(value));
+  }, [value]);
+
+  function clamp(nextValue: number) {
+    return Math.min(max, Math.max(min, nextValue));
+  }
+
+  function commit(nextDraftValue: string) {
+    if (!nextDraftValue) {
+      setDraftValue(String(value));
+      onCommit?.(value);
+      return;
+    }
+
+    const nextValue = clamp(Number(nextDraftValue));
+    setDraftValue(String(nextValue));
+    onValueChange(nextValue);
+    onCommit?.(nextValue);
+  }
+
+  return (
+    <input
+      className="input"
+      disabled={disabled}
+      id={id}
+      inputMode="numeric"
+      max={max}
+      min={min}
+      pattern="[0-9]*"
+      type="text"
+      value={draftValue}
+      onBlur={() => commit(draftValue)}
+      onChange={(event) => {
+        const nextDraftValue = event.target.value.replace(/\D/g, "");
+        setDraftValue(nextDraftValue);
+        if (!nextDraftValue) return;
+        onValueChange(clamp(Number(nextDraftValue)));
+      }}
+    />
   );
 }
 
