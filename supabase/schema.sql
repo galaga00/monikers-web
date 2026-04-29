@@ -4,7 +4,7 @@ create table if not exists public.games (
   id uuid primary key default gen_random_uuid(),
   code text not null unique,
   host_player_id uuid,
-  phase text not null default 'setup' check (phase in ('setup', 'lobby', 'ready', 'playing', 'finished')),
+  phase text not null default 'setup' check (phase in ('setup', 'lobby', 'ready', 'playing', 'paused', 'finished')),
   current_team_id uuid,
   active_player_id uuid,
   current_prompt_id uuid,
@@ -17,6 +17,7 @@ create table if not exists public.games (
   expected_players integer,
   team_assignment_mode text not null default 'auto' check (team_assignment_mode in ('auto', 'choose')),
   prompt_mode text not null default 'free' check (prompt_mode in ('free', 'category', 'deck')),
+  paused_at timestamptz,
   created_at timestamptz not null default now()
 );
 
@@ -74,6 +75,15 @@ create table if not exists public.turns (
   skip_count integer not null default 0
 );
 
+create table if not exists public.game_events (
+  id uuid primary key default gen_random_uuid(),
+  game_id uuid not null references public.games(id) on delete cascade,
+  action text not null check (action in ('correct', 'skip', 'end_turn')),
+  payload jsonb not null,
+  undone_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
 do $$
 begin
   if not exists (select 1 from pg_constraint where conname = 'games_host_player_id_fkey') then
@@ -96,6 +106,7 @@ create index if not exists teams_game_id_idx on public.teams(game_id);
 create index if not exists prompts_game_id_status_idx on public.prompts(game_id, status);
 create index if not exists draft_cards_game_player_idx on public.draft_cards(game_id, player_id);
 create index if not exists turns_game_id_active_idx on public.turns(game_id, ended_at);
+create index if not exists game_events_game_id_undo_idx on public.game_events(game_id, undone_at, created_at desc);
 
 alter table public.games add column if not exists prompts_per_player integer not null default 3;
 alter table public.games add column if not exists turn_duration_seconds integer not null default 60;
@@ -104,6 +115,7 @@ alter table public.games add column if not exists cards_kept_per_player integer 
 alter table public.games add column if not exists expected_players integer;
 alter table public.games add column if not exists team_assignment_mode text not null default 'auto';
 alter table public.games add column if not exists prompt_mode text not null default 'free';
+alter table public.games add column if not exists paused_at timestamptz;
 alter table public.games alter column phase set default 'setup';
 alter table public.prompts add column if not exists category text;
 alter table public.prompts add column if not exists description text;
@@ -113,7 +125,7 @@ begin
   if exists (select 1 from pg_constraint where conname = 'games_phase_check') then
     alter table public.games drop constraint games_phase_check;
   end if;
-  alter table public.games add constraint games_phase_check check (phase in ('setup', 'lobby', 'ready', 'playing', 'finished'));
+  alter table public.games add constraint games_phase_check check (phase in ('setup', 'lobby', 'ready', 'playing', 'paused', 'finished'));
   if exists (select 1 from pg_constraint where conname = 'games_prompts_per_player_check') then
     alter table public.games drop constraint games_prompts_per_player_check;
   end if;
@@ -164,6 +176,9 @@ begin
   if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'turns') then
     alter publication supabase_realtime add table public.turns;
   end if;
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'game_events') then
+    alter publication supabase_realtime add table public.game_events;
+  end if;
 end $$;
 
 -- MVP note: no login is required, so the browser uses the anon key directly.
@@ -174,3 +189,4 @@ alter table public.teams disable row level security;
 alter table public.prompts disable row level security;
 alter table public.draft_cards disable row level security;
 alter table public.turns disable row level security;
+alter table public.game_events disable row level security;

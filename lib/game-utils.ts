@@ -148,6 +148,28 @@ export function isFinalRound(roundNumber: number) {
   return roundNumber >= ROUND_NAMES.length;
 }
 
+export function getRoundSummary(roundNumber: number) {
+  if (roundNumber === 1) return "Say anything except the prompt itself.";
+  if (roundNumber === 2) return "Give exactly one word as the clue.";
+  if (roundNumber === 3) return "No words or sounds. Act it out.";
+  return "Keep the clues moving.";
+}
+
+export function getTeamBalanceWarning(snapshot: GameSnapshot) {
+  const rosterSizes = snapshot.teams.map((team) => getTeamRoster(team.id, snapshot.players).length);
+  if (rosterSizes.length < 2) return null;
+  const smallest = Math.min(...rosterSizes);
+  const largest = Math.max(...rosterSizes);
+  if (largest - smallest <= 1) return null;
+  return `Teams look uneven: one team has ${largest} players and another has ${smallest}.`;
+}
+
+export function getWinningTeams(teams: Team[]) {
+  if (teams.length === 0) return [];
+  const bestScore = Math.max(...teams.map((team) => team.score));
+  return teams.filter((team) => team.score === bestScore);
+}
+
 export function getTurnSecondsLeft(startedAt: string | null | undefined, durationSeconds = TURN_DURATION_SECONDS, now = Date.now()) {
   if (!startedAt) return durationSeconds;
   const elapsedSeconds = Math.floor((now - new Date(startedAt).getTime()) / 1000);

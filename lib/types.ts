@@ -1,4 +1,4 @@
-export type GamePhase = "setup" | "lobby" | "ready" | "playing" | "finished";
+export type GamePhase = "setup" | "lobby" | "ready" | "playing" | "paused" | "finished";
 export type TeamAssignmentMode = "auto" | "choose";
 export type PromptMode = "free" | "category" | "deck";
 
@@ -19,6 +19,7 @@ export type Game = {
   expected_players: number | null;
   team_assignment_mode: TeamAssignmentMode;
   prompt_mode: PromptMode;
+  paused_at: string | null;
   created_at: string;
 };
 
@@ -75,6 +76,20 @@ export type Turn = {
   skip_count: number;
 };
 
+export type GameEvent = {
+  id: string;
+  game_id: string;
+  action: "correct" | "skip" | "end_turn";
+  payload: {
+    game: Pick<Game, "phase" | "current_team_id" | "active_player_id" | "current_prompt_id" | "turn_number" | "round_number" | "paused_at">;
+    teams: Array<Pick<Team, "id" | "score">>;
+    prompts: Array<Pick<Prompt, "id" | "status" | "deck_order">>;
+    activeTurn: Pick<Turn, "id" | "ended_at" | "correct_count" | "skip_count"> | null;
+  };
+  undone_at: string | null;
+  created_at: string;
+};
+
 export type GameSnapshot = {
   game: Game;
   players: Player[];
@@ -82,4 +97,5 @@ export type GameSnapshot = {
   prompts: Prompt[];
   draftCards: DraftCard[];
   activeTurn: Turn | null;
+  latestUndoableEvent: GameEvent | null;
 };

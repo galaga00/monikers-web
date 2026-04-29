@@ -7,15 +7,20 @@ import { useParams } from "next/navigation";
 import {
   assignPlayerToTeam,
   endTurn,
+  finishGame,
   joinGame,
   loadSnapshot,
   markCorrect,
+  pauseGame,
+  resetToLobby,
+  resumeGame,
   saveGameSetup,
   setDraftCardSelected,
   skipPrompt,
   startGame,
   startTurn,
   submitPrompts,
+  undoLastAction,
   updatePlayerName
 } from "@/lib/game-api";
 import { supabase } from "@/lib/supabase";
@@ -33,8 +38,11 @@ import {
   getPlayerStorageKey,
   getPromptCountForPlayer,
   getPromptProgress,
+  getRoundSummary,
   getTeamRoster,
+  getTeamBalanceWarning,
   getRoundName,
+  getWinningTeams,
   hasPlayerDrafted,
   hasPlayerSubmitted,
   getTurnSecondsLeft
@@ -85,6 +93,7 @@ export default function GamePage() {
       .on("postgres_changes", { event: "*", schema: "public", table: "prompts", filter: `game_id=eq.${gameId}` }, refresh)
       .on("postgres_changes", { event: "*", schema: "public", table: "draft_cards", filter: `game_id=eq.${gameId}` }, refresh)
       .on("postgres_changes", { event: "*", schema: "public", table: "turns", filter: `game_id=eq.${gameId}` }, refresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "game_events", filter: `game_id=eq.${gameId}` }, refresh)
       .subscribe();
 
     return () => {
@@ -129,6 +138,13 @@ export default function GamePage() {
       localStorage.setItem(getLegacyPlayerStorageKey(snapshot.game.id), player.id);
       setPlayerId(player.id);
     });
+  }
+
+  function handleReclaimPlayer(nextPlayerId: string) {
+    if (!snapshot) return;
+    localStorage.setItem(getPlayerStorageKey(snapshot.game.id), nextPlayerId);
+    localStorage.setItem(getLegacyPlayerStorageKey(snapshot.game.id), nextPlayerId);
+    setPlayerId(nextPlayerId);
   }
 
   async function handleNameSave(event: FormEvent<HTMLFormElement>) {
@@ -269,7 +285,14 @@ export default function GamePage() {
       </section>
 
       {!me ? (
-        <JoinThisGame onSubmit={handleJoin} name={joinName} setName={setJoinName} busy={busy} />
+        <JoinThisGame
+          snapshot={snapshot}
+          onSubmit={handleJoin}
+          name={joinName}
+          setName={setJoinName}
+          busy={busy}
+          onReclaimPlayer={handleReclaimPlayer}
+        />
       ) : snapshot.game.phase === "setup" ? (
         <Setup
           busy={busy}
@@ -322,10 +345,20 @@ export default function GamePage() {
           activePlayer={activePlayer}
           currentPrompt={currentPrompt}
           busy={busy}
+          isHost={isHost}
           onCorrect={() => runAction(() => markCorrect(snapshot))}
           onSkip={() => runAction(() => skipPrompt(snapshot))}
           onEndTurn={() => runAction(() => endTurn(snapshot))}
           onStartTurn={() => runAction(() => startTurn(snapshot))}
+          onPause={() => runAction(() => pauseGame(snapshot))}
+          onResume={() => runAction(() => resumeGame(snapshot))}
+          onUndo={() => runAction(() => undoLastAction(snapshot))}
+          onFinishGame={() => {
+            if (window.confirm("End the game now?")) runAction(() => finishGame(snapshot));
+          }}
+          onResetToLobby={() => {
+            if (window.confirm("Reset scores and return to the lobby?")) runAction(() => resetToLobby(snapshot));
+          }}
         />
       )}
 
@@ -538,28 +571,47 @@ function Setup({
 }
 
 function JoinThisGame({
+  snapshot,
   onSubmit,
   name,
   setName,
-  busy
+  busy,
+  onReclaimPlayer
 }: {
+  snapshot: GameSnapshot;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   name: string;
   setName: (name: string) => void;
   busy: boolean;
+  onReclaimPlayer: (playerId: string) => void;
 }) {
   return (
-    <form className="card stack" onSubmit={onSubmit}>
-      <h2>Join this game</h2>
-      <p className="muted">Enter your name to claim this phone as a player.</p>
-      <div className="field">
-        <label htmlFor="name">Your name</label>
-        <input className="input" id="name" value={name} onChange={(event) => setName(event.target.value)} autoComplete="name" />
-      </div>
-      <button className="button accent" disabled={busy}>
-        Join
-      </button>
-    </form>
+    <div className="stack">
+      <form className="card stack" onSubmit={onSubmit}>
+        <h2>Join this game</h2>
+        <p className="muted">Enter your name to claim this phone as a player.</p>
+        <div className="field">
+          <label htmlFor="name">Your name</label>
+          <input className="input" id="name" value={name} onChange={(event) => setName(event.target.value)} autoComplete="name" />
+        </div>
+        <button className="button accent" disabled={busy}>
+          Join
+        </button>
+      </form>
+      {snapshot.players.length > 0 ? (
+        <section className="card stack">
+          <h2>Rejoin as yourself</h2>
+          <p className="muted">Lost your tab? Pick your name to reconnect on this phone.</p>
+          <div className="button-list">
+            {snapshot.players.map((player) => (
+              <button className="button secondary" disabled={busy} key={player.id} onClick={() => onReclaimPlayer(player.id)}>
+                {player.name}
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : null}
+    </div>
   );
 }
 
@@ -621,6 +673,7 @@ function Lobby({
   const allPlayersHaveTeams = snapshot.players.every((player) => Boolean(player.team_id));
   const canStart = promptProgress.isComplete && allPlayersHaveTeams;
   const progressLabel = isDeckDraft ? "Draft progress" : "Prompt progress";
+  const teamBalanceWarning = getTeamBalanceWarning(snapshot);
 
   return (
     <div className="stack">
@@ -635,6 +688,7 @@ function Lobby({
             ? ` Expected total: ${promptProgress.expectedTotal}.`
             : ""}
         </p>
+        {isHost && teamBalanceWarning ? <p className="notice warning">{teamBalanceWarning}</p> : null}
         <TeamRosters snapshot={snapshot} me={me} isHost={isHost} busy={busy} onAssignPlayerToTeam={onAssignPlayerToTeam} />
       </section>
 
@@ -893,26 +947,39 @@ function Play({
   activePlayer,
   currentPrompt,
   busy,
+  isHost,
   onCorrect,
   onSkip,
   onEndTurn,
-  onStartTurn
+  onStartTurn,
+  onPause,
+  onResume,
+  onUndo,
+  onFinishGame,
+  onResetToLobby
 }: {
   snapshot: GameSnapshot;
   me: Player;
   activePlayer: Player | null;
   currentPrompt: Prompt | null;
   busy: boolean;
+  isHost: boolean;
   onCorrect: () => void;
   onSkip: () => void;
   onEndTurn: () => void;
   onStartTurn: () => void;
+  onPause: () => void;
+  onResume: () => void;
+  onUndo: () => void;
+  onFinishGame: () => void;
+  onResetToLobby: () => void;
 }) {
   const isActive = me.id === activePlayer?.id;
   const [now, setNow] = useState(Date.now());
   const [autoEndedTurnId, setAutoEndedTurnId] = useState<string | null>(null);
   const secondsLeft = getTurnSecondsLeft(snapshot.activeTurn?.started_at, snapshot.game.turn_duration_seconds, now);
   const isTurnRunning = snapshot.game.phase === "playing";
+  const isPaused = snapshot.game.phase === "paused";
 
   useEffect(() => {
     if (!isTurnRunning) return;
@@ -929,10 +996,16 @@ function Play({
   if (snapshot.game.phase === "finished") {
     return (
       <div className="stack">
-        <Scoreboard snapshot={snapshot} />
-        <section className="card">
+        <Scoreboard snapshot={snapshot} celebrateWinner />
+        <section className="card winner-card stack">
           <h2>Game finished</h2>
           <p className="muted">All prompts were guessed through Charades.</p>
+          <div className="winner-callout">{getWinningTeams(snapshot.teams).map((team) => team.name).join(" + ")} wins!</div>
+          {isHost ? (
+            <button className="button secondary" disabled={busy} onClick={onResetToLobby}>
+              Reset to lobby
+            </button>
+          ) : null}
         </section>
       </div>
     );
@@ -952,7 +1025,14 @@ function Play({
           <span>{activePlayer?.name ?? "Someone"} is up</span>
         </div>
         {snapshot.game.phase === "ready" ? (
-          <div className="ready-panel stack">
+          <div className={snapshot.game.round_number > 1 ? "ready-panel round-transition stack" : "ready-panel stack"}>
+            {snapshot.game.round_number > 1 ? (
+              <>
+                <span className="pill">Round {snapshot.game.round_number - 1} complete</span>
+                <h2>Next up: {getRoundName(snapshot.game.round_number)}</h2>
+                <p className="muted">{getRoundSummary(snapshot.game.round_number)}</p>
+              </>
+            ) : null}
             <p className="muted">
               {isActive ? "Tap ready when your team is listening." : `Waiting for ${activePlayer?.name ?? "the active player"} to start.`}
             </p>
@@ -961,6 +1041,12 @@ function Play({
                 Ready!
               </button>
             ) : null}
+          </div>
+        ) : null}
+        {isPaused ? (
+          <div className="ready-panel stack">
+            <h2>Game paused</h2>
+            <p className="muted">The host paused the timer.</p>
           </div>
         ) : null}
         {isTurnRunning ? (
@@ -988,16 +1074,80 @@ function Play({
             </button>
           </div>
         ) : null}
+        {isHost ? (
+          <HostPlayControls
+            busy={busy}
+            canUndo={Boolean(snapshot.latestUndoableEvent)}
+            isPaused={isPaused}
+            isTurnRunning={isTurnRunning}
+            onFinishGame={onFinishGame}
+            onPause={onPause}
+            onResetToLobby={onResetToLobby}
+            onResume={onResume}
+            onUndo={onUndo}
+          />
+        ) : null}
       </section>
     </div>
   );
 }
 
-function Scoreboard({ snapshot }: { snapshot: GameSnapshot }) {
+function HostPlayControls({
+  busy,
+  canUndo,
+  isPaused,
+  isTurnRunning,
+  onFinishGame,
+  onPause,
+  onResetToLobby,
+  onResume,
+  onUndo
+}: {
+  busy: boolean;
+  canUndo: boolean;
+  isPaused: boolean;
+  isTurnRunning: boolean;
+  onFinishGame: () => void;
+  onPause: () => void;
+  onResetToLobby: () => void;
+  onResume: () => void;
+  onUndo: () => void;
+}) {
+  return (
+    <section className="host-play-controls stack">
+      <h2>Host controls</h2>
+      <div className="button-row">
+        {isPaused ? (
+          <button className="button accent" disabled={busy} onClick={onResume}>
+            Resume
+          </button>
+        ) : (
+          <button className="button secondary" disabled={busy || !isTurnRunning} onClick={onPause}>
+            Pause
+          </button>
+        )}
+        <button className="button secondary" disabled={busy || !canUndo} onClick={onUndo}>
+          Undo last
+        </button>
+      </div>
+      <div className="button-row">
+        <button className="button warn" disabled={busy} onClick={onResetToLobby}>
+          Reset lobby
+        </button>
+        <button className="button danger" disabled={busy} onClick={onFinishGame}>
+          End game
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function Scoreboard({ snapshot, celebrateWinner = false }: { snapshot: GameSnapshot; celebrateWinner?: boolean }) {
+  const winningTeamIds = new Set(celebrateWinner ? getWinningTeams(snapshot.teams).map((team) => team.id) : []);
   return (
     <section className="score-grid">
       {snapshot.teams.map((team) => (
-        <div className="score" key={team.id}>
+        <div className={winningTeamIds.has(team.id) ? "score winner" : "score"} key={team.id}>
           <span className="muted tiny">{team.name}</span>
           <strong>{team.score}</strong>
         </div>

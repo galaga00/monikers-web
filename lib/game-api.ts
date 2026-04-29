@@ -2,7 +2,7 @@
 
 import { hasSupabaseConfig, supabase } from "./supabase";
 import { STARTER_DECK } from "./starter-deck";
-import type { DraftCard, Game, GameSnapshot, Player, Prompt, PromptMode, Team, Turn } from "./types";
+import type { DraftCard, Game, GameEvent, GameSnapshot, Player, Prompt, PromptMode, Team, Turn } from "./types";
 import {
   createJoinCode,
   DEFAULT_CARDS_DEALT_PER_PLAYER,
@@ -41,7 +41,8 @@ export async function createGame(hostName: string) {
         cards_dealt_per_player: DEFAULT_CARDS_DEALT_PER_PLAYER,
         cards_kept_per_player: DEFAULT_CARDS_KEPT_PER_PLAYER,
         team_assignment_mode: DEFAULT_TEAM_ASSIGNMENT_MODE,
-        prompt_mode: "free"
+        prompt_mode: "free",
+        paused_at: null
       })
       .select("*")
       .single<Game>();
@@ -196,7 +197,7 @@ export async function joinGame(code: string, playerName: string) {
 
 export async function loadSnapshot(gameId: string) {
   ensureSupabaseConfig();
-  const [gameResult, playersResult, teamsResult, promptsResult, draftCardsResult, turnResult] = await Promise.all([
+  const [gameResult, playersResult, teamsResult, promptsResult, draftCardsResult, turnResult, eventResult] = await Promise.all([
     supabase.from("games").select("*").eq("id", gameId).single<Game>(),
     supabase.from("players").select("*").eq("game_id", gameId).order("created_at"),
     supabase.from("teams").select("*").eq("game_id", gameId).order("sort_order"),
@@ -209,7 +210,15 @@ export async function loadSnapshot(gameId: string) {
       .is("ended_at", null)
       .order("started_at", { ascending: false })
       .limit(1)
-      .maybeSingle<Turn>()
+      .maybeSingle<Turn>(),
+    supabase
+      .from("game_events")
+      .select("*")
+      .eq("game_id", gameId)
+      .is("undone_at", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle<GameEvent>()
   ]);
 
   if (gameResult.error) throw gameResult.error;
@@ -218,6 +227,7 @@ export async function loadSnapshot(gameId: string) {
   if (promptsResult.error) throw promptsResult.error;
   if (draftCardsResult.error) throw draftCardsResult.error;
   if (turnResult.error) throw turnResult.error;
+  if (eventResult.error) throw eventResult.error;
 
   return {
     game: gameResult.data,
@@ -225,7 +235,8 @@ export async function loadSnapshot(gameId: string) {
     teams: teamsResult.data as Team[],
     prompts: promptsResult.data as Prompt[],
     draftCards: draftCardsResult.data as DraftCard[],
-    activeTurn: turnResult.data
+    activeTurn: turnResult.data,
+    latestUndoableEvent: eventResult.data
   } satisfies GameSnapshot;
 }
 
@@ -340,7 +351,8 @@ export async function startGame(snapshot: GameSnapshot) {
       current_team_id: firstAssignment.team.id,
       current_prompt_id: firstPrompt.id,
       turn_number: 1,
-      round_number: 1
+      round_number: 1,
+      paused_at: null
     })
     .eq("id", snapshot.game.id);
 
@@ -425,8 +437,124 @@ export async function startTurn(snapshot: GameSnapshot) {
   });
   if (turnError) throw turnError;
 
-  const { error: gameError } = await supabase.from("games").update({ phase: "playing" }).eq("id", snapshot.game.id);
+  const { error: gameError } = await supabase.from("games").update({ phase: "playing", paused_at: null }).eq("id", snapshot.game.id);
   if (gameError) throw gameError;
+}
+
+export async function pauseGame(snapshot: GameSnapshot) {
+  ensureSupabaseConfig();
+  if (snapshot.game.phase !== "playing") return;
+  const { error } = await supabase.from("games").update({ phase: "paused", paused_at: new Date().toISOString() }).eq("id", snapshot.game.id);
+  if (error) throw error;
+}
+
+export async function resumeGame(snapshot: GameSnapshot) {
+  ensureSupabaseConfig();
+  if (snapshot.game.phase !== "paused") return;
+  const pausedAt = snapshot.game.paused_at ? new Date(snapshot.game.paused_at).getTime() : Date.now();
+  const pausedMilliseconds = Math.max(0, Date.now() - pausedAt);
+  if (snapshot.activeTurn) {
+    const adjustedStartedAt = new Date(new Date(snapshot.activeTurn.started_at).getTime() + pausedMilliseconds).toISOString();
+    const { error: turnError } = await supabase.from("turns").update({ started_at: adjustedStartedAt }).eq("id", snapshot.activeTurn.id);
+    if (turnError) throw turnError;
+  }
+  const { error } = await supabase.from("games").update({ phase: "playing", paused_at: null }).eq("id", snapshot.game.id);
+  if (error) throw error;
+}
+
+export async function finishGame(snapshot: GameSnapshot) {
+  ensureSupabaseConfig();
+  const { error } = await supabase
+    .from("games")
+    .update({ phase: "finished", current_prompt_id: null, active_player_id: null, current_team_id: null, paused_at: null })
+    .eq("id", snapshot.game.id);
+  if (error) throw error;
+}
+
+export async function resetToLobby(snapshot: GameSnapshot) {
+  ensureSupabaseConfig();
+  const updates = [
+    supabase.from("turns").update({ ended_at: new Date().toISOString() }).eq("game_id", snapshot.game.id).is("ended_at", null),
+    supabase.from("prompts").update({ status: "available", deck_order: null }).eq("game_id", snapshot.game.id),
+    supabase.from("teams").update({ score: 0 }).eq("game_id", snapshot.game.id),
+    supabase
+      .from("games")
+      .update({
+        phase: "lobby",
+        current_prompt_id: null,
+        active_player_id: null,
+        current_team_id: null,
+        paused_at: null,
+        turn_number: 0,
+        round_number: 1
+      })
+      .eq("id", snapshot.game.id)
+  ];
+  const results = await Promise.all(updates);
+  const error = results.find((result) => result.error)?.error;
+  if (error) throw error;
+}
+
+async function recordUndoPoint(snapshot: GameSnapshot, action: GameEvent["action"]) {
+  const { error } = await supabase.from("game_events").insert({
+    game_id: snapshot.game.id,
+    action,
+    payload: {
+      game: {
+        phase: snapshot.game.phase,
+        current_team_id: snapshot.game.current_team_id,
+        active_player_id: snapshot.game.active_player_id,
+        current_prompt_id: snapshot.game.current_prompt_id,
+        turn_number: snapshot.game.turn_number,
+        round_number: snapshot.game.round_number,
+        paused_at: snapshot.game.paused_at
+      },
+      teams: snapshot.teams.map((team) => ({ id: team.id, score: team.score })),
+      prompts: snapshot.prompts.map((prompt) => ({ id: prompt.id, status: prompt.status, deck_order: prompt.deck_order })),
+      activeTurn: snapshot.activeTurn
+        ? {
+            id: snapshot.activeTurn.id,
+            ended_at: snapshot.activeTurn.ended_at,
+            correct_count: snapshot.activeTurn.correct_count,
+            skip_count: snapshot.activeTurn.skip_count
+          }
+        : null
+    }
+  });
+  if (error) throw error;
+}
+
+export async function undoLastAction(snapshot: GameSnapshot) {
+  ensureSupabaseConfig();
+  const event = snapshot.latestUndoableEvent;
+  if (!event) throw new Error("Nothing to undo yet.");
+
+  const teamUpdates = event.payload.teams.map((team) => supabase.from("teams").update({ score: team.score }).eq("id", team.id));
+  const promptUpdates = event.payload.prompts.map((prompt) =>
+    supabase.from("prompts").update({ status: prompt.status, deck_order: prompt.deck_order }).eq("id", prompt.id)
+  );
+  const turnUpdates = event.payload.activeTurn
+    ? [
+        supabase
+          .from("turns")
+          .update({
+            ended_at: event.payload.activeTurn.ended_at,
+            correct_count: event.payload.activeTurn.correct_count,
+            skip_count: event.payload.activeTurn.skip_count
+          })
+          .eq("id", event.payload.activeTurn.id)
+      ]
+    : [];
+
+  const results = await Promise.all([
+    ...teamUpdates,
+    ...promptUpdates,
+    ...turnUpdates,
+    supabase.from("games").update(event.payload.game).eq("id", snapshot.game.id),
+    supabase.from("game_events").update({ undone_at: new Date().toISOString() }).eq("id", event.id)
+  ]);
+  const error = results.find((result) => result.error)?.error;
+  if (error) throw error;
 }
 
 async function activateNextPrompt(gameId: string, excludePromptId?: string) {
@@ -464,7 +592,7 @@ async function prepareNextRound(snapshot: GameSnapshot) {
   if (isFinalRound(snapshot.game.round_number)) {
     const { error } = await supabase
       .from("games")
-      .update({ phase: "finished", current_prompt_id: null, active_player_id: null, current_team_id: null })
+      .update({ phase: "finished", current_prompt_id: null, active_player_id: null, current_team_id: null, paused_at: null })
       .eq("id", snapshot.game.id);
     if (error) throw error;
     return;
@@ -478,7 +606,7 @@ async function prepareNextRound(snapshot: GameSnapshot) {
   if (!firstPrompt || !nextAssignment) {
     const { error } = await supabase
       .from("games")
-      .update({ phase: "finished", current_prompt_id: null, active_player_id: null, current_team_id: null })
+      .update({ phase: "finished", current_prompt_id: null, active_player_id: null, current_team_id: null, paused_at: null })
       .eq("id", snapshot.game.id);
     if (error) throw error;
     return;
@@ -500,7 +628,8 @@ async function prepareNextRound(snapshot: GameSnapshot) {
       current_team_id: nextAssignment.team.id,
       current_prompt_id: firstPrompt.id,
       round_number: nextRoundNumber,
-      turn_number: snapshot.game.turn_number + 1
+      turn_number: snapshot.game.turn_number + 1,
+      paused_at: null
     })
     .eq("id", snapshot.game.id);
 
@@ -512,6 +641,7 @@ export async function markCorrect(snapshot: GameSnapshot) {
   const promptId = snapshot.game.current_prompt_id;
   const teamId = snapshot.game.current_team_id;
   if (!promptId || !teamId) return;
+  await recordUndoPoint(snapshot, "correct");
 
   const team = snapshot.teams.find((candidate) => candidate.id === teamId);
   const turn = snapshot.activeTurn;
@@ -539,6 +669,7 @@ export async function skipPrompt(snapshot: GameSnapshot) {
   ensureSupabaseConfig();
   const promptId = snapshot.game.current_prompt_id;
   if (!promptId) return;
+  await recordUndoPoint(snapshot, "skip");
 
   const maxDeckOrder = Math.max(0, ...snapshot.prompts.map((prompt) => prompt.deck_order ?? 0));
   const updates = [
@@ -557,6 +688,7 @@ export async function skipPrompt(snapshot: GameSnapshot) {
 
 export async function endTurn(snapshot: GameSnapshot) {
   ensureSupabaseConfig();
+  await recordUndoPoint(snapshot, "end_turn");
   if (snapshot.activeTurn) {
     const { error } = await supabase
       .from("turns")
@@ -579,7 +711,7 @@ export async function endTurn(snapshot: GameSnapshot) {
   if (!nextAssignment || !nextPrompt) {
     const { error } = await supabase
       .from("games")
-      .update({ phase: "finished", current_prompt_id: null, active_player_id: null, current_team_id: null })
+      .update({ phase: "finished", current_prompt_id: null, active_player_id: null, current_team_id: null, paused_at: null })
       .eq("id", snapshot.game.id);
     if (error) throw error;
     return;
@@ -595,7 +727,8 @@ export async function endTurn(snapshot: GameSnapshot) {
       active_player_id: nextAssignment.player.id,
       current_team_id: nextAssignment.team.id,
       current_prompt_id: nextPrompt.id,
-      turn_number: snapshot.game.turn_number + 1
+      turn_number: snapshot.game.turn_number + 1,
+      paused_at: null
     })
     .eq("id", snapshot.game.id);
 

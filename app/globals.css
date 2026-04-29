@@ -318,6 +318,23 @@ a {
   padding: 12px;
 }
 
+.score.winner {
+  position: relative;
+  border-color: #f9c74f;
+  background: #fff8df;
+  box-shadow: 0 0 0 3px rgba(249, 199, 79, 0.28);
+  animation: winnerPulse 1.5s ease-in-out infinite;
+  overflow: hidden;
+}
+
+.score.winner::after {
+  content: "";
+  position: absolute;
+  inset: -40%;
+  background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, 0.75) 48%, transparent 66%);
+  animation: winnerShine 2.2s ease-in-out infinite;
+}
+
 .score strong {
   display: block;
   font-size: 2rem;
@@ -505,6 +522,11 @@ a {
   padding: 14px;
 }
 
+.round-transition {
+  border-color: #f9c74f;
+  background: #fff8df;
+}
+
 .timer {
   display: grid;
   min-height: 84px;
@@ -545,6 +567,71 @@ a {
   padding: 11px;
 }
 
+.notice.warning {
+  border-color: #f2d28c;
+  background: #fff8df;
+  color: #6b4300;
+}
+
+.button-list {
+  display: grid;
+  gap: 8px;
+}
+
+.host-play-controls {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  padding: 14px;
+}
+
+.winner-card {
+  border-color: #f9c74f;
+  background: #fff8df;
+}
+
+.winner-callout {
+  border-radius: 8px;
+  background: #101828;
+  color: #f9c74f;
+  padding: 18px;
+  text-align: center;
+  font-size: clamp(2rem, 10vw, 3.6rem);
+  font-weight: 900;
+  line-height: 0.95;
+  animation: winnerBounce 1.6s ease-in-out infinite;
+}
+
 .tiny {
   font-size: 0.82rem;
+}
+
+@keyframes winnerPulse {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-2px) scale(1.02);
+  }
+}
+
+@keyframes winnerShine {
+  0% {
+    transform: translateX(-80%) rotate(0deg);
+  }
+  55%,
+  100% {
+    transform: translateX(80%) rotate(0deg);
+  }
+}
+
+@keyframes winnerBounce {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.035);
+  }
 }
