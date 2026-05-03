@@ -2,11 +2,12 @@
 
 import { hasSupabaseConfig, supabase } from "./supabase";
 import { STARTER_DECK } from "./starter-deck";
-import type { DraftCard, Game, GameEvent, GameSnapshot, Player, Prompt, PromptMode, Team, Turn } from "./types";
+import type { DraftCard, Game, GameEvent, GameSnapshot, Player, PlayMode, Prompt, PromptMode, Team, Turn } from "./types";
 import {
   createJoinCode,
   DEFAULT_CARDS_DEALT_PER_PLAYER,
   DEFAULT_CARDS_KEPT_PER_PLAYER,
+  DEFAULT_PLAY_MODE,
   DEFAULT_PROMPTS_PER_PLAYER,
   DEFAULT_TEAM_ASSIGNMENT_MODE,
   TURN_DURATION_OPTIONS,
@@ -42,6 +43,7 @@ export async function createGame(hostName: string) {
         cards_kept_per_player: DEFAULT_CARDS_KEPT_PER_PLAYER,
         team_assignment_mode: DEFAULT_TEAM_ASSIGNMENT_MODE,
         prompt_mode: "free",
+        play_mode: DEFAULT_PLAY_MODE,
         paused_at: null
       })
       .select("*")
@@ -88,7 +90,9 @@ export async function saveGameSetup(
   expectedPlayers?: number | null,
   cardsDealtPerPlayer = DEFAULT_CARDS_DEALT_PER_PLAYER,
   cardsKeptPerPlayer = DEFAULT_CARDS_KEPT_PER_PLAYER,
-  turnDurationSeconds = TURN_DURATION_SECONDS
+  turnDurationSeconds = TURN_DURATION_SECONDS,
+  playMode: PlayMode = DEFAULT_PLAY_MODE,
+  passAndPlayNames: string[] = []
 ) {
   ensureSupabaseConfig();
   const cleanPromptsPerPlayer = Math.min(20, Math.max(1, Math.round(promptsPerPlayer)));
@@ -98,6 +102,9 @@ export async function saveGameSetup(
     Math.max(1, Math.round(cardsKeptPerPlayer))
   );
   const cleanTeamNames = teamNames.map((name, index) => name.trim() || `Team ${index + 1}`).slice(0, 12);
+  const cleanPlayMode: PlayMode = playMode === "pass_and_play" ? "pass_and_play" : DEFAULT_PLAY_MODE;
+  const cleanPromptMode: PromptMode = cleanPlayMode === "pass_and_play" && promptMode === "deck" ? "free" : promptMode;
+  const cleanPassAndPlayNames = passAndPlayNames.map((name) => name.trim()).filter(Boolean).slice(0, 40);
   const cleanExpectedPlayers = expectedPlayers ? Math.min(200, Math.max(1, Math.round(expectedPlayers))) : null;
   const cleanTurnDurationSeconds = TURN_DURATION_OPTIONS.includes(turnDurationSeconds as (typeof TURN_DURATION_OPTIONS)[number])
     ? turnDurationSeconds
@@ -130,19 +137,54 @@ export async function saveGameSetup(
       turn_duration_seconds: cleanTurnDurationSeconds,
       cards_dealt_per_player: cleanCardsDealtPerPlayer,
       cards_kept_per_player: cleanCardsKeptPerPlayer,
-      expected_players: cleanExpectedPlayers,
-      team_assignment_mode: teamAssignmentMode,
-      prompt_mode: promptMode,
+      expected_players: cleanPlayMode === "pass_and_play" ? Math.max(cleanPassAndPlayNames.length, 1) : cleanExpectedPlayers,
+      team_assignment_mode: cleanPlayMode === "pass_and_play" ? "auto" : teamAssignmentMode,
+      prompt_mode: cleanPromptMode,
+      play_mode: cleanPlayMode,
       phase: "lobby"
     })
     .eq("id", gameId);
 
   if (gameError) throw gameError;
 
-  const { error: hostError } = await supabase.from("players").update({ team_id: firstTeam.id }).eq("game_id", gameId).eq("is_host", true);
-  if (hostError) throw hostError;
+  if (cleanPlayMode === "pass_and_play") {
+    const { data: host, error: hostError } = await supabase
+      .from("players")
+      .select("*")
+      .eq("game_id", gameId)
+      .eq("is_host", true)
+      .single<Player>();
+    if (hostError) throw hostError;
 
-  if (promptMode === "deck") {
+    const names = cleanPassAndPlayNames.length > 0 ? cleanPassAndPlayNames : [host.name || "Player 1"];
+    const hostName = names[0] ?? host.name;
+    const hostTeam = (teams as Team[])[0];
+    const { error: updateHostError } = await supabase
+      .from("players")
+      .update({ name: hostName, team_id: hostTeam.id, has_submitted: false })
+      .eq("id", host.id);
+    if (updateHostError) throw updateHostError;
+
+    const { error: nonHostDeleteError } = await supabase.from("players").delete().eq("game_id", gameId).eq("is_host", false);
+    if (nonHostDeleteError) throw nonHostDeleteError;
+
+    const extraPlayers = names.slice(1);
+    if (extraPlayers.length > 0) {
+      const { error: playerError } = await supabase.from("players").insert(
+        extraPlayers.map((name, index) => ({
+          game_id: gameId,
+          name,
+          team_id: (teams as Team[])[(index + 1) % Math.max((teams as Team[]).length, 1)]?.id ?? firstTeam.id
+        }))
+      );
+      if (playerError) throw playerError;
+    }
+  } else {
+    const { error: hostError } = await supabase.from("players").update({ team_id: firstTeam.id }).eq("game_id", gameId).eq("is_host", true);
+    if (hostError) throw hostError;
+  }
+
+  if (cleanPromptMode === "deck") {
     const { data: players, error: playersError } = await supabase.from("players").select("*").eq("game_id", gameId);
     if (playersError) throw playersError;
     await Promise.all((players as Player[]).map((player) => ensureDraftHand(gameId, player.id, cleanCardsDealtPerPlayer)));
@@ -159,6 +201,7 @@ export async function joinGame(code: string, playerName: string) {
 
   if (gameError) throw new Error("No game found for that code.");
   if (game.phase === "setup") throw new Error("The host is still setting up this game.");
+  if (game.play_mode === "pass_and_play") throw new Error("This game is in Pass & Play mode. Use the host phone.");
 
   const { data: teams, error: teamError } = await supabase
     .from("teams")
@@ -263,15 +306,22 @@ export async function submitPrompts(gameId: string, playerId: string, prompts: A
   const { data: game, error: gameError } = await supabase.from("games").select("*").eq("id", gameId).single<Game>();
   if (gameError) throw gameError;
 
-  const { count, error: countError } = await supabase
-    .from("prompts")
-    .select("id", { count: "exact", head: true })
-    .eq("game_id", gameId)
-    .eq("player_id", playerId);
+  let countQuery = supabase.from("prompts").select("id", { count: "exact", head: true }).eq("game_id", gameId);
+  if (game.play_mode !== "pass_and_play") {
+    countQuery = countQuery.eq("player_id", playerId);
+  }
+  const { count, error: countError } = await countQuery;
 
   if (countError) throw countError;
 
-  const slotsLeft = Math.max(0, game.prompts_per_player - (count ?? 0));
+  const { count: playerCount, error: playerCountError } = await supabase
+    .from("players")
+    .select("id", { count: "exact", head: true })
+    .eq("game_id", gameId);
+  if (playerCountError) throw playerCountError;
+
+  const requiredCount = game.play_mode === "pass_and_play" ? game.prompts_per_player * Math.max(playerCount ?? 1, 1) : game.prompts_per_player;
+  const slotsLeft = Math.max(0, requiredCount - (count ?? 0));
   const promptsToInsert = cleanPrompts.slice(0, slotsLeft);
 
   if (promptsToInsert.length > 0) {
@@ -287,10 +337,9 @@ export async function submitPrompts(gameId: string, playerId: string, prompts: A
   }
 
   const nextPromptCount = (count ?? 0) + promptsToInsert.length;
-  const { error: playerError } = await supabase
-    .from("players")
-    .update({ has_submitted: nextPromptCount >= game.prompts_per_player })
-    .eq("id", playerId);
+  let playerUpdate = supabase.from("players").update({ has_submitted: nextPromptCount >= requiredCount });
+  playerUpdate = game.play_mode === "pass_and_play" ? playerUpdate.eq("game_id", gameId) : playerUpdate.eq("id", playerId);
+  const { error: playerError } = await playerUpdate;
   if (playerError) throw playerError;
 }
 
@@ -320,6 +369,7 @@ export async function startGame(snapshot: GameSnapshot) {
   ensureSupabaseConfig();
   const unreadyPlayer = snapshot.players.find((player) => {
     if (!player.team_id) return true;
+    if (snapshot.game.play_mode === "pass_and_play") return false;
     if (snapshot.game.prompt_mode === "deck") return !hasPlayerDrafted(player.id, snapshot);
     return !hasPlayerSubmitted(player.id, snapshot.prompts, snapshot.game.prompts_per_player);
   });
@@ -328,6 +378,10 @@ export async function startGame(snapshot: GameSnapshot) {
     throw new Error(
       `${unreadyPlayer.name} still needs a team and ${snapshot.game.prompt_mode === "deck" ? "cards" : "prompts"}.`
     );
+  }
+
+  if (snapshot.game.play_mode === "pass_and_play" && snapshot.prompts.length < snapshot.players.length * snapshot.game.prompts_per_player) {
+    throw new Error("Add enough prompts for the pass-and-play group before starting.");
   }
 
   const promptPool = snapshot.game.prompt_mode === "deck" ? await ensureDeckDraftPrompts(snapshot) : snapshot.prompts;

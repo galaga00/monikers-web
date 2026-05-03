@@ -17,6 +17,7 @@ create table if not exists public.games (
   expected_players integer,
   team_assignment_mode text not null default 'auto' check (team_assignment_mode in ('auto', 'choose')),
   prompt_mode text not null default 'free' check (prompt_mode in ('free', 'category', 'deck')),
+  play_mode text not null default 'multi_device' check (play_mode in ('multi_device', 'pass_and_play')),
   paused_at timestamptz,
   created_at timestamptz not null default now()
 );
@@ -115,6 +116,7 @@ alter table public.games add column if not exists cards_kept_per_player integer 
 alter table public.games add column if not exists expected_players integer;
 alter table public.games add column if not exists team_assignment_mode text not null default 'auto';
 alter table public.games add column if not exists prompt_mode text not null default 'free';
+alter table public.games add column if not exists play_mode text not null default 'multi_device';
 alter table public.games add column if not exists paused_at timestamptz;
 alter table public.games alter column phase set default 'setup';
 alter table public.prompts add column if not exists category text;
@@ -154,6 +156,10 @@ begin
     alter table public.games drop constraint games_prompt_mode_check;
   end if;
   alter table public.games add constraint games_prompt_mode_check check (prompt_mode in ('free', 'category', 'deck'));
+  if exists (select 1 from pg_constraint where conname = 'games_play_mode_check') then
+    alter table public.games drop constraint games_play_mode_check;
+  end if;
+  alter table public.games add constraint games_play_mode_check check (play_mode in ('multi_device', 'pass_and_play'));
 end $$;
 
 do $$

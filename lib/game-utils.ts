@@ -8,6 +8,7 @@ export const DEFAULT_PROMPTS_PER_PLAYER = 3;
 export const DEFAULT_CARDS_DEALT_PER_PLAYER = 10;
 export const DEFAULT_CARDS_KEPT_PER_PLAYER = 5;
 export const DEFAULT_TEAM_ASSIGNMENT_MODE = "auto";
+export const DEFAULT_PLAY_MODE = "multi_device";
 
 export function createJoinCode() {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -75,6 +76,10 @@ export function getPromptProgress(snapshot: GameSnapshot) {
     expectedTotal,
     isComplete: snapshot.players.length > 0 && submittedTotal >= requiredTotal
   };
+}
+
+export function isPassAndPlay(snapshot: GameSnapshot) {
+  return snapshot.game.play_mode === "pass_and_play";
 }
 
 export function getTeamRoster(teamId: string, players: Player[]) {

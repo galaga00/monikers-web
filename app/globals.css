@@ -173,6 +173,10 @@ a {
   line-height: 1.45;
 }
 
+.textarea.short {
+  min-height: 104px;
+}
+
 .button-row {
   display: grid;
   grid-template-columns: 1fr 1fr;

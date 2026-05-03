@@ -29,6 +29,7 @@ import {
   DEFAULT_PROMPTS_PER_PLAYER,
   DEFAULT_CARDS_DEALT_PER_PLAYER,
   DEFAULT_CARDS_KEPT_PER_PLAYER,
+  DEFAULT_PLAY_MODE,
   DEFAULT_TEAM_COUNT,
   DEFAULT_TEAM_ASSIGNMENT_MODE,
   TURN_DURATION_OPTIONS,
@@ -45,10 +46,11 @@ import {
   getWinningTeams,
   hasPlayerDrafted,
   hasPlayerSubmitted,
+  isPassAndPlay,
   getTurnSecondsLeft
 } from "@/lib/game-utils";
 import { getPromptCategoriesForPlayer } from "@/lib/prompt-categories";
-import type { PromptMode, TeamAssignmentMode } from "@/lib/types";
+import type { PlayMode, PromptMode, TeamAssignmentMode } from "@/lib/types";
 
 export default function GamePage() {
   const params = useParams<{ gameId: string }>();
@@ -67,6 +69,8 @@ export default function GamePage() {
   const [expectedPlayers, setExpectedPlayers] = useState("");
   const [teamAssignmentMode, setTeamAssignmentMode] = useState<TeamAssignmentMode>(DEFAULT_TEAM_ASSIGNMENT_MODE);
   const [promptMode, setPromptMode] = useState<PromptMode>("free");
+  const [playMode, setPlayMode] = useState<PlayMode>(DEFAULT_PLAY_MODE);
+  const [passAndPlayNames, setPassAndPlayNames] = useState("Player 1\nPlayer 2\nPlayer 3\nPlayer 4");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -199,7 +203,12 @@ export default function GamePage() {
         expectedPlayers ? Math.max(minimumExpectedPlayers, Number(expectedPlayers)) : null,
         cardsDealtPerPlayer,
         cardsKeptPerPlayer,
-        turnDurationSeconds
+        turnDurationSeconds,
+        playMode,
+        passAndPlayNames
+          .split("\n")
+          .map((name) => name.trim())
+          .filter(Boolean)
       )
     );
   }
@@ -271,7 +280,7 @@ export default function GamePage() {
             </p>
           </div>
         </div>
-        {isHost && snapshot.game.phase !== "setup" ? (
+        {isHost && snapshot.game.phase !== "setup" && !isPassAndPlay(snapshot) ? (
           <div className="split">
             <Image className="qr" src={qrUrl} alt="QR code for joining this game" width={164} height={164} unoptimized />
             <div className="stack">
@@ -315,6 +324,10 @@ export default function GamePage() {
           setTeamAssignmentMode={setTeamAssignmentMode}
           promptMode={promptMode}
           setPromptMode={setPromptMode}
+          playMode={playMode}
+          setPlayMode={setPlayMode}
+          passAndPlayNames={passAndPlayNames}
+          setPassAndPlayNames={setPassAndPlayNames}
           onSave={handleSetupSave}
         />
       ) : snapshot.game.phase === "lobby" ? (
@@ -388,6 +401,10 @@ function Setup({
   setTeamAssignmentMode,
   promptMode,
   setPromptMode,
+  playMode,
+  setPlayMode,
+  passAndPlayNames,
+  setPassAndPlayNames,
   onSave
 }: {
   busy: boolean;
@@ -410,6 +427,10 @@ function Setup({
   setTeamAssignmentMode: (mode: TeamAssignmentMode) => void;
   promptMode: PromptMode;
   setPromptMode: (mode: PromptMode) => void;
+  playMode: PlayMode;
+  setPlayMode: (mode: PlayMode) => void;
+  passAndPlayNames: string;
+  setPassAndPlayNames: (names: string) => void;
   onSave: (event: FormEvent<HTMLFormElement>) => void;
 }) {
   if (!isHost) {
@@ -424,8 +445,43 @@ function Setup({
   return (
     <form className="card stack" onSubmit={onSave}>
       <h2>Game setup</h2>
-      <div className="split">
+      <div className="field">
+        <label>Play mode</label>
+        <div className="segmented">
+          <button
+            className={playMode === "multi_device" ? "segment active" : "segment"}
+            type="button"
+            onClick={() => setPlayMode("multi_device")}
+          >
+            Everyone joins
+          </button>
+          <button
+            className={playMode === "pass_and_play" ? "segment active" : "segment"}
+            type="button"
+            onClick={() => {
+              setPlayMode("pass_and_play");
+              if (promptMode === "deck") setPromptMode("free");
+            }}
+          >
+            Pass & Play
+          </button>
+        </div>
+      </div>
+      {playMode === "pass_and_play" ? (
         <div className="field">
+          <label htmlFor="passPlayers">Players</label>
+          <textarea
+            className="textarea short"
+            id="passPlayers"
+            value={passAndPlayNames}
+            onChange={(event) => setPassAndPlayNames(event.target.value)}
+            placeholder={"Austin\nMaya\nSam\nJordan"}
+          />
+        </div>
+      ) : null}
+      <div className="split">
+        {playMode === "multi_device" ? (
+          <div className="field">
           <label htmlFor="expectedPlayers">Expected players</label>
           <input
             className="input"
@@ -439,7 +495,8 @@ function Setup({
             onChange={(event) => setExpectedPlayers(event.target.value.replace(/\D/g, ""))}
             placeholder="Optional"
           />
-        </div>
+          </div>
+        ) : null}
         <div className="field">
           <label htmlFor="teamCount">Teams</label>
           <MobileNumberInput
@@ -469,6 +526,7 @@ function Setup({
             <button
               className={teamAssignmentMode === "auto" ? "segment active" : "segment"}
               type="button"
+              disabled={playMode === "pass_and_play"}
               onClick={() => setTeamAssignmentMode("auto")}
             >
               Auto
@@ -476,6 +534,7 @@ function Setup({
             <button
               className={teamAssignmentMode === "choose" ? "segment active" : "segment"}
               type="button"
+              disabled={playMode === "pass_and_play"}
               onClick={() => setTeamAssignmentMode("choose")}
             >
               Players choose
@@ -507,10 +566,16 @@ function Setup({
           <button className={promptMode === "category" ? "segment active" : "segment"} type="button" onClick={() => setPromptMode("category")}>
             Category mix
           </button>
-          <button className={promptMode === "deck" ? "segment active" : "segment"} type="button" onClick={() => setPromptMode("deck")}>
+          <button
+            className={promptMode === "deck" ? "segment active" : "segment"}
+            disabled={playMode === "pass_and_play"}
+            type="button"
+            onClick={() => setPromptMode("deck")}
+          >
             Deck draft
           </button>
         </div>
+        {playMode === "pass_and_play" ? <p className="muted tiny">Deck Draft is available when everyone joins on their own phone.</p> : null}
       </div>
       {promptMode === "deck" ? (
         <div className="split">
@@ -710,18 +775,22 @@ function Lobby({
   const myPromptCount = getPromptCountForPlayer(me.id, snapshot.prompts);
   const myDraftCards = snapshot.draftCards.filter((card) => card.player_id === me.id);
   const myDraftSelectedCount = getDraftSelectedCountForPlayer(me.id, snapshot);
-  const myPromptsLeft = Math.max(0, snapshot.game.prompts_per_player - myPromptCount);
+  const passAndPlay = isPassAndPlay(snapshot);
+  const sharedPromptTarget = snapshot.players.length * snapshot.game.prompts_per_player;
+  const submittedPromptCount = passAndPlay ? snapshot.prompts.length : myPromptCount;
+  const requiredPromptCount = passAndPlay ? sharedPromptTarget : snapshot.game.prompts_per_player;
+  const myPromptsLeft = Math.max(0, requiredPromptCount - submittedPromptCount);
   const pendingPromptLines = promptText
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean).length;
-  const categoryPrompts = getPromptCategoriesForPlayer(snapshot.game.id, me.id, snapshot.game.prompts_per_player);
-  const remainingCategories = categoryPrompts.slice(myPromptCount, myPromptCount + myPromptsLeft);
+  const categoryPrompts = getPromptCategoriesForPlayer(snapshot.game.id, me.id, requiredPromptCount);
+  const remainingCategories = categoryPrompts.slice(submittedPromptCount, submittedPromptCount + myPromptsLeft);
   const pendingCategoryPromptCount = categoryPromptValues.filter((value) => value.trim()).length;
   const pendingPromptCount = snapshot.game.prompt_mode === "category" ? pendingCategoryPromptCount : pendingPromptLines;
   const isDeckDraft = snapshot.game.prompt_mode === "deck";
   const canSubmitPrompts = !isDeckDraft && myPromptsLeft > 0 && pendingPromptCount > 0;
-  const canSelfSwitchTeams = snapshot.game.team_assignment_mode === "choose";
+  const canSelfSwitchTeams = snapshot.game.team_assignment_mode === "choose" && !passAndPlay;
   const needsTeam = canSelfSwitchTeams && !me.team_id;
   const allPlayersHaveTeams = snapshot.players.every((player) => Boolean(player.team_id));
   const canStart = promptProgress.isComplete && allPlayersHaveTeams;
@@ -741,6 +810,7 @@ function Lobby({
             ? ` Expected total: ${promptProgress.expectedTotal}.`
             : ""}
         </p>
+        {passAndPlay ? <p className="notice warning">Pass & Play is on. Keep this phone with the host, then pass it to each active player when prompted.</p> : null}
         {isHost && teamBalanceWarning ? <p className="notice warning">{teamBalanceWarning}</p> : null}
         <TeamRosters snapshot={snapshot} me={me} isHost={isHost} busy={busy} onAssignPlayerToTeam={onAssignPlayerToTeam} />
       </section>
@@ -804,7 +874,11 @@ function Lobby({
         <form className="card stack" onSubmit={onPromptSubmit}>
           <h2>Submit prompts</h2>
           <p className="muted">
-            {needsTeam ? "Choose a team first." : `Your prompts: ${myPromptCount} / ${snapshot.game.prompts_per_player}`}
+            {needsTeam
+              ? "Choose a team first."
+              : passAndPlay
+                ? `Shared prompts: ${snapshot.prompts.length} / ${sharedPromptTarget}`
+                : `Your prompts: ${myPromptCount} / ${snapshot.game.prompts_per_player}`}
           </p>
           {snapshot.game.prompt_mode === "category" ? (
             <div className="stack">
@@ -853,6 +927,8 @@ function Lobby({
             Start when everyone reaches{" "}
             {isDeckDraft
               ? `${snapshot.game.cards_kept_per_player} / ${snapshot.game.cards_kept_per_player} cards`
+              : passAndPlay
+                ? `${sharedPromptTarget} shared prompts`
               : `${snapshot.game.prompts_per_player} / ${snapshot.game.prompts_per_player} prompts`}.
             {!allPlayersHaveTeams ? " Everyone also needs a team." : ""}
           </p>
@@ -954,6 +1030,7 @@ function PlayerLobbyRow({
   onAssignPlayerToTeam: (playerId: string, teamId: string) => void;
 }) {
   const isDeckDraft = snapshot.game.prompt_mode === "deck";
+  const passAndPlay = isPassAndPlay(snapshot);
   const progressCount = isDeckDraft
     ? getDraftSelectedCountForPlayer(player.id, snapshot)
     : getPromptCountForPlayer(player.id, snapshot.prompts);
@@ -970,7 +1047,7 @@ function PlayerLobbyRow({
       </span>
       <div className="player-row-actions">
         <span className={isReady ? "pill" : "pill pending"}>
-          {player.team_id ? `${progressCount} / ${progressRequired}` : "No team"}
+          {player.team_id ? (passAndPlay ? "Pass & Play" : `${progressCount} / ${progressRequired}`) : "No team"}
         </span>
         {isHost ? (
           <select
@@ -1028,6 +1105,8 @@ function Play({
   onResetToLobby: () => void;
 }) {
   const isActive = me.id === activePlayer?.id;
+  const passAndPlay = isPassAndPlay(snapshot);
+  const isController = isActive || (isHost && passAndPlay);
   const [now, setNow] = useState(Date.now());
   const [autoEndedTurnId, setAutoEndedTurnId] = useState<string | null>(null);
   const secondsLeft = getTurnSecondsLeft(snapshot.activeTurn?.started_at, snapshot.game.turn_duration_seconds, now);
@@ -1041,10 +1120,10 @@ function Play({
   }, [isTurnRunning, snapshot.activeTurn?.id]);
 
   useEffect(() => {
-    if (!isTurnRunning || !isActive || !snapshot.activeTurn || secondsLeft > 0 || autoEndedTurnId === snapshot.activeTurn.id) return;
+    if (!isTurnRunning || !isController || !snapshot.activeTurn || secondsLeft > 0 || autoEndedTurnId === snapshot.activeTurn.id) return;
     setAutoEndedTurnId(snapshot.activeTurn.id);
     onEndTurn();
-  }, [autoEndedTurnId, isActive, isTurnRunning, onEndTurn, secondsLeft, snapshot.activeTurn]);
+  }, [autoEndedTurnId, isController, isTurnRunning, onEndTurn, secondsLeft, snapshot.activeTurn]);
 
   if (snapshot.game.phase === "finished") {
     return (
@@ -1087,9 +1166,13 @@ function Play({
               </>
             ) : null}
             <p className="muted">
-              {isActive ? "Tap ready when your team is listening." : `Waiting for ${activePlayer?.name ?? "the active player"} to start.`}
+              {isController
+                ? passAndPlay
+                  ? `Pass the phone to ${activePlayer?.name ?? "the active player"}, then tap Ready.`
+                  : "Tap ready when your team is listening."
+                : `Waiting for ${activePlayer?.name ?? "the active player"} to start.`}
             </p>
-            {isActive ? (
+            {isController ? (
               <button className="button accent" disabled={busy} onClick={onStartTurn}>
                 Ready!
               </button>
@@ -1107,12 +1190,18 @@ function Play({
             <div className={secondsLeft <= 10 ? "timer urgent" : "timer"} aria-live="polite">
               {secondsLeft}s
             </div>
-            <p className="muted">{isActive ? "Show this screen to no one." : "Wait for your turn."}</p>
-            <div className="prompt">{isActive ? currentPrompt?.text ?? "No prompt" : "Waiting..."}</div>
-            {isActive && currentPrompt?.description ? <p className="card-note">{currentPrompt.description}</p> : null}
+            <p className="muted">
+              {isController
+                ? passAndPlay
+                  ? `${activePlayer?.name ?? "Active player"} is holding the phone. No peeking from the team.`
+                  : "Show this screen to no one."
+                : "Wait for your turn."}
+            </p>
+            <div className="prompt">{isController ? currentPrompt?.text ?? "No prompt" : "Waiting..."}</div>
+            {isController && currentPrompt?.description ? <p className="card-note">{currentPrompt.description}</p> : null}
           </>
         ) : null}
-        {isActive && isTurnRunning ? (
+        {isController && isTurnRunning ? (
           <div className="stack">
             <div className="button-row">
               <button className="button accent" disabled={busy || secondsLeft <= 0} onClick={onCorrect}>
