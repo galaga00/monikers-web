@@ -1,8 +1,7 @@
 "use client";
 
 import { hasSupabaseConfig, supabase } from "./supabase";
-import { STARTER_DECK } from "./starter-deck";
-import { buildPassPlayDeck, getDefaultPassPlayCardCount, MIXED_PASS_PLAY_CATEGORY } from "./pass-play-deck";
+import { buildPassPlayDeck, filterStarterDeckByCategories, getDefaultPassPlayCardCount, MIXED_PASS_PLAY_CATEGORY } from "./pass-play-deck";
 import type { DraftCard, Game, GameEvent, GameSnapshot, Player, PlayMode, Prompt, PromptMode, Team, Turn } from "./types";
 import {
   createJoinCode,
@@ -219,7 +218,7 @@ export async function saveGameSetup(
   if (cleanPromptMode === "deck") {
     const { data: players, error: playersError } = await supabase.from("players").select("*").eq("game_id", gameId);
     if (playersError) throw playersError;
-    await Promise.all((players as Player[]).map((player) => ensureDraftHand(gameId, player.id, cleanCardsDealtPerPlayer)));
+    await Promise.all((players as Player[]).map((player) => ensureDraftHand(gameId, player.id, cleanCardsDealtPerPlayer, cleanPromptCategories)));
   }
 }
 
@@ -264,7 +263,7 @@ export async function joinGame(code: string, playerName: string) {
   if (playerError) throw playerError;
 
   if (game.prompt_mode === "deck") {
-    await ensureDraftHand(game.id, player.id, game.cards_dealt_per_player);
+    await ensureDraftHand(game.id, player.id, game.cards_dealt_per_player, game.prompt_categories ?? [MIXED_PASS_PLAY_CATEGORY]);
   }
 
   return { game, player };
@@ -445,7 +444,7 @@ export async function startGame(snapshot: GameSnapshot) {
   if (gameError) throw gameError;
 }
 
-async function ensureDraftHand(gameId: string, playerId: string, cardsToDeal: number) {
+async function ensureDraftHand(gameId: string, playerId: string, cardsToDeal: number, selectedCategories: string[]) {
   const { count, error: countError } = await supabase
     .from("draft_cards")
     .select("id", { count: "exact", head: true })
@@ -462,8 +461,9 @@ async function ensureDraftHand(gameId: string, playerId: string, cardsToDeal: nu
   if (existingError) throw existingError;
 
   const usedIds = new Set((existingCards ?? []).map((card) => card.card_id as string));
-  const unusedCards = STARTER_DECK.filter((card) => !usedIds.has(card.id));
-  const sourceCards = unusedCards.length >= cardsToDeal ? unusedCards : STARTER_DECK;
+  const categoryCards = filterStarterDeckByCategories(selectedCategories);
+  const unusedCards = categoryCards.filter((card) => !usedIds.has(card.id));
+  const sourceCards = unusedCards.length >= cardsToDeal ? unusedCards : categoryCards;
   const hand = shuffle(sourceCards).slice(0, cardsToDeal);
 
   const { error } = await supabase.from("draft_cards").insert(

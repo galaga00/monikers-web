@@ -631,16 +631,18 @@ function Setup({
           </div>
         </div>
       ) : null}
-      {playMode === "multi_device" && promptMode !== "deck" ? (
+      {playMode === "multi_device" ? (
         <CategorySelector
           categories={promptCategories}
           helpText={
-            promptMode === "category"
+            promptMode === "deck"
+              ? "Cards will be dealt from these categories. Mixed pulls from the full deck."
+              : promptMode === "category"
               ? "Players will be asked for prompt ideas from these categories. Mixed spreads the prompts across the full set."
               : "Tap a category below to use category prompts for Everyone Joins."
           }
-          inactive={promptMode !== "category"}
-          onActivate={() => setPromptMode("category")}
+          inactive={promptMode === "free"}
+          onActivate={promptMode === "free" ? () => setPromptMode("category") : undefined}
           setCategories={setPromptCategories}
         />
       ) : null}
@@ -1162,7 +1164,7 @@ function Lobby({
                 id="prompts"
                 value={promptText}
                 onChange={(event) => setPromptText(event.target.value)}
-                placeholder={"Taylor Swift\nA toaster with ambition\nThe moon landing"}
+                placeholder="Write anything you want, just make sure people can actually guess it!"
               />
             </div>
           )}

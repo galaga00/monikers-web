@@ -38,12 +38,8 @@ export function getDefaultPassPlayCardCount(playerCount: number) {
 
 export function buildPassPlayDeck(cardCount: number, selectedCategories: string[]) {
   const cleanCount = Math.min(80, Math.max(10, Math.round(cardCount)));
-  const useMixed = selectedCategories.includes(MIXED_PASS_PLAY_CATEGORY) || selectedCategories.length === 0;
-  const categoryIds = useMixed
-    ? PASS_PLAY_CATEGORY_OPTIONS.map((category) => category.id)
-    : selectedCategories.filter((category): category is PassPlayCategoryId =>
-        PASS_PLAY_CATEGORY_OPTIONS.some((option) => option.id === category)
-      );
+  const useMixed = shouldUseMixedCategories(selectedCategories);
+  const categoryIds = getSelectedPassPlayCategoryIds(selectedCategories);
 
   const categorizedCards = STARTER_DECK.map((card) => ({ ...card, category: getCardCategory(card) }));
   if (!useMixed) {
@@ -62,6 +58,27 @@ export function buildPassPlayDeck(cardCount: number, selectedCategories: string[
   }
 
   return mixedCards;
+}
+
+export function filterStarterDeckByCategories(selectedCategories: string[]) {
+  const useMixed = shouldUseMixedCategories(selectedCategories);
+  const categoryIds = getSelectedPassPlayCategoryIds(selectedCategories);
+  const categorizedCards = STARTER_DECK.map((card) => ({ ...card, category: getCardCategory(card) }));
+  return useMixed ? categorizedCards : categorizedCards.filter((card) => categoryIds.includes(card.category));
+}
+
+function shouldUseMixedCategories(selectedCategories: string[]) {
+  return selectedCategories.includes(MIXED_PASS_PLAY_CATEGORY) || selectedCategories.length === 0;
+}
+
+function getSelectedPassPlayCategoryIds(selectedCategories: string[]) {
+  const categoryIds = shouldUseMixedCategories(selectedCategories)
+    ? PASS_PLAY_CATEGORY_OPTIONS.map((category) => category.id)
+    : selectedCategories.filter((category): category is PassPlayCategoryId =>
+        PASS_PLAY_CATEGORY_OPTIONS.some((option) => option.id === category)
+      );
+
+  return categoryIds.length > 0 ? categoryIds : PASS_PLAY_CATEGORY_OPTIONS.map((category) => category.id);
 }
 
 function getCardCategory(card: StarterDeckCard): PassPlayCategoryId {
