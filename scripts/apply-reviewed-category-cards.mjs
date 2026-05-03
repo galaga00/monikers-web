@@ -40,8 +40,9 @@ function parseReview(markdown) {
       const title = get("Title");
       const checkbox = block.match(/^- \[(x|X| )\]\s*Keep\s*$/m);
       const legacyStatus = get("Status").toUpperCase();
+      const keep = checkbox ? checkbox[1].toLowerCase() === "x" : legacyStatus === "KEEP";
       return {
-        keep: checkbox ? checkbox[1].toLowerCase() === "x" : legacyStatus !== "DELETE",
+        keep,
         category: get("Category"),
         id: `${get("Category")}-${slugify(title)}`,
         title,

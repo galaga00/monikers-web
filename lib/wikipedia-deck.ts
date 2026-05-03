@@ -54,11 +54,6 @@ export const WIKIPEDIA_DECK: StarterDeckCard[] = [
     "description": "An Oscar-winning actor known for Mad Max: Fury Road, Monster, Atomic Blonde, and action-heavy roles."
   },
   {
-    "id": "wiki-cristiano-ronaldo",
-    "title": "Cristiano Ronaldo",
-    "description": "A Portuguese soccer superstar known for goals, Champions League trophies, and his signature Siu celebration."
-  },
-  {
     "id": "wiki-meryl-streep",
     "title": "Meryl Streep",
     "description": "A highly decorated actor known for roles in The Devil Wears Prada, Mamma Mia!, Sophie's Choice, and many Oscar nominations."
@@ -74,11 +69,6 @@ export const WIKIPEDIA_DECK: StarterDeckCard[] = [
     "description": "A pop and R&B star known for Rhythm Nation, Control, elaborate choreography, and the Jackson family legacy."
   },
   {
-    "id": "wiki-diego-pavia",
-    "title": "Diego Pavia",
-    "description": "An American football quarterback known for his college football career and dual-threat playing style."
-  },
-  {
     "id": "wiki-robin-williams",
     "title": "Robin Williams",
     "description": "A beloved actor and comedian known for Mrs. Doubtfire, Aladdin, Good Will Hunting, and rapid-fire improv."
@@ -87,11 +77,6 @@ export const WIKIPEDIA_DECK: StarterDeckCard[] = [
     "id": "wiki-olivia-rodrigo",
     "title": "Olivia Rodrigo",
     "description": "A singer-songwriter and actor known for Drivers License, Good 4 U, Vampire, and the albums Sour and Guts."
-  },
-  {
-    "id": "wiki-fifa-world-cup",
-    "title": "FIFA World Cup",
-    "description": "The global soccer tournament held every four years, where national teams compete for the sport's biggest trophy."
   },
   {
     "id": "wiki-bts",
@@ -142,11 +127,6 @@ export const WIKIPEDIA_DECK: StarterDeckCard[] = [
     "id": "wiki-bob-dylan",
     "title": "Bob Dylan",
     "description": "A legendary singer-songwriter known for Blowin' in the Wind, Like a Rolling Stone, and poetic folk-rock lyrics."
-  },
-  {
-    "id": "wiki-kobe-bryant",
-    "title": "Kobe Bryant",
-    "description": "A Los Angeles Lakers legend known for five NBA championships, the Mamba Mentality, and a relentless work ethic."
   },
   {
     "id": "wiki-cher",
@@ -202,11 +182,6 @@ export const WIKIPEDIA_DECK: StarterDeckCard[] = [
     "id": "wiki-megan-thee-stallion",
     "title": "Megan Thee Stallion",
     "description": "A rapper known for Hot Girl Summer, Savage, Body, and confident Houston-flavored bars."
-  },
-  {
-    "id": "wiki-kevin-durant",
-    "title": "Kevin Durant",
-    "description": "An NBA superstar scorer known for his height, smooth shooting, MVP award, and championship runs."
   },
   {
     "id": "wiki-eminem",

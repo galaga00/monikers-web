@@ -10,7 +10,6 @@ export const SIMPLE_PROMPT_CATEGORIES = [
   "Song",
   "Historical figure",
   "Household object",
-  "Athlete",
   "TV show",
   "Landmark",
   "Brand",
@@ -27,7 +26,6 @@ export const SIMPLE_PROMPT_CATEGORIES = [
   "Restaurant",
   "Cartoon character",
   "Someone in the room",
-  "Sport",
   "Toy",
   "Famous place",
   "School subject",
@@ -38,7 +36,6 @@ const CATEGORY_GROUPS: Record<PassPlayCategoryId, string[]> = {
   people: [
     "Celebrity",
     "Historical figure",
-    "Athlete",
     "Musician",
     "Comedian",
     "Famous internet person",
@@ -65,16 +62,6 @@ const CATEGORY_GROUPS: Record<PassPlayCategoryId, string[]> = {
     "Album",
     "Singer"
   ],
-  sports: [
-    "Athlete",
-    "Sport",
-    "Sports team",
-    "Olympic sport",
-    "Stadium",
-    "Sports announcer",
-    "Mascot",
-    "Famous sports moment"
-  ],
   fiction_games: [
     "Fictional character",
     "Superhero",
@@ -100,7 +87,6 @@ const CATEGORY_GROUPS: Record<PassPlayCategoryId, string[]> = {
     "An animal with a job",
     "A fictional character at the grocery store",
     "A historical figure using modern technology",
-    "A musician playing a different sport",
     "A superhero with a boring problem",
     "A villain doing customer service",
     "A movie character at a wedding"
@@ -123,11 +109,9 @@ export const COMBO_PROMPT_CATEGORIES = [
   "A fictional character at the grocery store",
   "A historical figure using modern technology",
   "A food item with a personality",
-  "A musician playing a different sport",
   "A superhero with a boring problem",
   "A villain doing customer service",
   "A cartoon character on a first date",
-  "An athlete doing a household task",
   "A fictional character stuck at the DMV",
   "A celebrity trying to be sneaky",
   "A movie character at a wedding",

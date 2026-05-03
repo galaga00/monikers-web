@@ -27,20 +27,17 @@ const CORE_DECK: StarterDeckCard[] = [
   { id: "hermione-granger", title: "Hermione Granger", description: "The brilliant Harry Potter character known for studying, spells, and helping solve nearly every problem." },
   { id: "jane-goodall", title: "Jane Goodall", description: "A scientist famous for studying chimpanzees and advocating for wildlife conservation." },
   { id: "jaws", title: "Jaws", description: "The shark from the classic thriller movie, usually announced by ominous music." },
-  { id: "lebron-james", title: "LeBron James", description: "A basketball superstar known for power, passing, championships, and long-term dominance." },
   { id: "mario", title: "Mario", description: "The mustached Nintendo plumber who jumps on enemies, collects coins, and rescues Princess Peach." },
   { id: "mona-lisa", title: "The Mona Lisa", description: "Leonardo da Vinci's famous portrait with the small mysterious smile." },
   { id: "oprah-winfrey", title: "Oprah Winfrey", description: "A talk show host, producer, and media figure known for interviews and audience giveaways." },
   { id: "picasso", title: "Pablo Picasso", description: "A Spanish artist associated with Cubism and bold, fragmented portraits." },
   { id: "queen-elizabeth-ii", title: "Queen Elizabeth II", description: "The long-reigning British monarch known for formal waves, bright outfits, and royal ceremonies." },
-  { id: "serena-williams", title: "Serena Williams", description: "A tennis champion known for power, intensity, and many Grand Slam titles." },
   { id: "sherlock-holmes", title: "Sherlock Holmes", description: "A fictional detective who solves mysteries with sharp observation and deduction." },
   { id: "spider-man", title: "Spider-Man", description: "The superhero who swings between buildings, climbs walls, and says great power brings responsibility." },
   { id: "taylor-swift", title: "Taylor Swift", description: "A singer-songwriter known for eras, devoted fans, and albums that span country, pop, and folk styles." },
   { id: "the-beatles", title: "The Beatles", description: "The British band behind songs like Hey Jude, Yesterday, and Here Comes the Sun." },
   { id: "the-rock", title: "The Rock", description: "Dwayne Johnson, a wrestler turned movie star known for charisma, muscles, and one raised eyebrow." },
   { id: "t-rex", title: "T. rex", description: "A massive meat-eating dinosaur with huge teeth, tiny arms, and a starring role in museum displays." },
-  { id: "usain-bolt", title: "Usain Bolt", description: "A Jamaican sprinter famous for world records, Olympic gold medals, and lightning-bolt celebrations." },
   { id: "willy-wonka", title: "Willy Wonka", description: "The eccentric candy maker who runs a fantastical chocolate factory." },
   { id: "yoda", title: "Yoda", description: "The small green Jedi master known for wisdom, unusual sentence order, and teaching Luke Skywalker." },
   { id: "zeus", title: "Zeus", description: "The Greek god of thunder, lightning, and ruling the Olympian gods." },
@@ -104,4 +101,40 @@ const CORE_DECK: StarterDeckCard[] = [
   { id: "zombie-apocalypse", title: "Zombie Apocalypse", description: "A survival scenario with slow monsters, barricades, supplies, and questionable group decisions." }
 ];
 
-export const STARTER_DECK: StarterDeckCard[] = [...CORE_DECK, ...TMDB_DECK, ...WIKIPEDIA_DECK, ...CATEGORY_EXPANSION_DECK];
+export const STARTER_DECK: StarterDeckCard[] = [
+  ...CORE_DECK,
+  ...TMDB_DECK,
+  ...WIKIPEDIA_DECK,
+  ...CATEGORY_EXPANSION_DECK
+].filter((card) => !isSportsCard(card));
+
+function isSportsCard(card: StarterDeckCard) {
+  if (card.category === "sports") return true;
+
+  const text = `${card.id} ${card.title} ${card.description}`.toLowerCase();
+  return [
+    "basketball",
+    "baseball",
+    "football",
+    "soccer",
+    "tennis",
+    "olympic",
+    "nba",
+    "nfl",
+    "mlb",
+    "wnba",
+    "quarterback",
+    "world cup",
+    "lakers",
+    "dodgers",
+    "yankees",
+    "chiefs",
+    "grand slam",
+    "sprinter",
+    "swimmer",
+    "skateboarder",
+    "wrestler",
+    "athlete",
+    "sports analyst"
+  ].some((needle) => text.includes(needle));
+}

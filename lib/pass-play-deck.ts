@@ -5,7 +5,6 @@ export type PassPlayCategoryId =
   | "people"
   | "movies"
   | "music"
-  | "sports"
   | "fiction_games"
   | "places_objects"
   | "situations"
@@ -17,7 +16,6 @@ export const PASS_PLAY_CATEGORY_OPTIONS: Array<{ id: PassPlayCategoryId; label: 
   { id: "people", label: "People & Celebrities" },
   { id: "movies", label: "Movies & TV" },
   { id: "music", label: "Music" },
-  { id: "sports", label: "Sports" },
   { id: "fiction_games", label: "Fiction & Games" },
   { id: "places_objects", label: "Places & Things" },
   { id: "situations", label: "Situations" },
@@ -90,7 +88,6 @@ function getCardCategory(card: StarterDeckCard): PassPlayCategoryId {
 
   if (card.id.startsWith("tmdb-movie") || hasAny(text, ["movie", "film", "tv series", "hbo", "sitcom"])) return "movies";
   if (hasAny(text, ["singer", "song", "band", "music", "pop star", "rapper", "guitar", "beatles", "album"])) return "music";
-  if (hasAny(text, ["basketball", "tennis", "soccer", "football", "olympic", "nba", "quarterback", "world cup"])) return "sports";
   if (hasAny(text, ["superhero", "villain", "star wars", "harry potter", "nintendo", "video game", "comic", "jedi", "wizard"])) {
     return "fiction_games";
   }

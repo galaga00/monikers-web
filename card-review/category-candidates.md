@@ -6,7 +6,7 @@ How to review:
 - Leave `- [x] Keep` checked for cards you like.
 - Uncheck it to remove a card: `- [ ] Keep`.
 - Edit `Title:`, `Description:`, or `Category:` directly if you want changes.
-- Valid categories: people, music, sports, fiction_games, places_objects, animals_nature.
+- Valid categories: people, music, fiction_games, places_objects, animals_nature.
 
 When you are done, tell Codex to apply the reviewed category cards.
 
@@ -125,21 +125,21 @@ Description: A recognizable clue: Guy Ramsay Fieri is an American restaurateur, 
 Source: https://en.wikipedia.org/wiki/Guy_Fieri
 
 ### Lilly Singh
-- [x] Keep
+- [] Keep
 Category: people
 Title: Lilly Singh
 Description: A recognizable clue: Lilly Singh is a Canadian YouTuber, actress, television host, and comedian. She began making YouTube videos in 2010, initially under the pseudonym Superwoman.
 Source: https://en.wikipedia.org/wiki/Lilly_Singh
 
 ### Charli D'Amelio
-- [x] Keep
+- [] Keep
 Category: people
 Title: Charli D'Amelio
 Description: A recognizable clue: Charli Grace D'Amelio is an American social media personality and dancer. She was a competitive dancer for over a decade before she came to prominence in late 2019.
 Source: https://en.wikipedia.org/wiki/Charli_D'Amelio
 
 ### Addison Rae
-- [x] Keep
+- [] Keep
 Category: people
 Title: Addison Rae
 Description: A recognizable clue: Addison Rae Easterling is an American singer, actress, dancer, and social media personality. She joined TikTok in 2019, becoming one of the platform's most-followed creators.
@@ -239,7 +239,7 @@ Description: A recognizable clue: Abel Tesfaye, known professionally as the Week
 Source: https://en.wikipedia.org/wiki/The_Weeknd
 
 ### SZA
-- [x] Keep
+- [] Keep
 Category: music
 Title: SZA
 Description: A recognizable clue: Solána Imani Rowe, known professionally as SZA, is an American singer-songwriter. Known for her diaristic songwriting and genre explorations.
@@ -260,7 +260,7 @@ Description: A recognizable clue: Peter Gene Hernandez, known professionally as 
 Source: https://en.wikipedia.org/wiki/Bruno_Mars
 
 ### Doja Cat
-- [x] Keep
+- [] Keep
 Category: music
 Title: Doja Cat
 Description: A recognizable clue: Amala Ratna Zandile Dlamini, known professionally as Doja Cat, is an American rapper, singer, songwriter, and record producer. Regarded as the "Queen of Pop-Rap".
@@ -274,7 +274,7 @@ Description: A recognizable clue: Miley Ray Cyrus is an American singer, songwri
 Source: https://en.wikipedia.org/wiki/Miley_Cyrus
 
 ### Blackpink
-- [x] Keep
+- [] Keep
 Category: music
 Title: Blackpink
 Description: A recognizable clue: Blackpink is a South Korean girl group formed by YG Entertainment. The group is composed of four members: Jisoo, Jennie, Rosé, and Lisa.
@@ -357,182 +357,6 @@ Title: Mariah Carey
 Description: A recognizable clue: Mariah Carey is an American singer-songwriter, record producer, and actress. Dubbed the "Songbird Supreme", Carey is known for her five-octave vocal range, melismatic singing style.
 Source: https://en.wikipedia.org/wiki/Mariah_Carey
 
-## Sports
-
-### Shohei Ohtani
-- [x] Keep
-Category: sports
-Title: Shohei Ohtani
-Description: A recognizable clue: Shohei Ohtani is a Japanese professional baseball designated hitter and pitcher for the Los Angeles Dodgers of Major League Baseball (MLB). Nicknamed "Shotime".
-Source: https://en.wikipedia.org/wiki/Shohei_Ohtani
-
-### Patrick Mahomes
-- [x] Keep
-Category: sports
-Title: Patrick Mahomes
-Description: A recognizable clue: Patrick Lavon Mahomes II is an American professional football quarterback for the Kansas City Chiefs of the National Football League (NFL).
-Source: https://en.wikipedia.org/wiki/Patrick_Mahomes
-
-### Travis Kelce
-- [x] Keep
-Category: sports
-Title: Travis Kelce
-Description: A recognizable clue: Travis Michael Kelce is an American professional football tight end for the Kansas City Chiefs of the National Football League (NFL).
-Source: https://en.wikipedia.org/wiki/Travis_Kelce
-
-### Caitlin Clark
-- [x] Keep
-Category: sports
-Title: Caitlin Clark
-Description: A recognizable clue: Caitlin Elizabeth Clark is an American professional basketball player for the Indiana Fever of the Women's National Basketball Association (WNBA).
-Source: https://en.wikipedia.org/wiki/Caitlin_Clark
-
-### Alex Morgan
-- [x] Keep
-Category: sports
-Title: Alex Morgan
-Description: A recognizable clue: Alexandra Morgan Carrasco is an American former professional soccer player.
-Source: https://en.wikipedia.org/wiki/Alex_Morgan
-
-### Megan Rapinoe
-- [x] Keep
-Category: sports
-Title: Megan Rapinoe
-Description: A recognizable clue: Megan Anna Rapinoe is an American former professional soccer player who played as a midfielder and winger.
-Source: https://en.wikipedia.org/wiki/Megan_Rapinoe
-
-### Tiger Woods
-- [x] Keep
-Category: sports
-Title: Tiger Woods
-Description: A recognizable clue: Eldrick Tont "Tiger" Woods is an American professional golfer.
-Source: https://en.wikipedia.org/wiki/Tiger_Woods
-
-### Shaquille O'Neal
-- [x] Keep
-Category: sports
-Title: Shaquille O'Neal
-Description: A recognizable clue: Shaquille Rashaun O'Neal, commonly known as Shaq, is an American former professional basketball player and sports analyst on the television program Inside the NBA. Nicknamed "Diesel".
-Source: https://en.wikipedia.org/wiki/Shaquille_O'Neal
-
-### Neymar
-- [x] Keep
-Category: sports
-Title: Neymar
-Description: A recognizable clue: Neymar da Silva Santos Júnior, simply known as Neymar Júnior or mononymously as Neymar.
-Source: https://en.wikipedia.org/wiki/Neymar
-
-### Roger Federer
-- [x] Keep
-Category: sports
-Title: Roger Federer
-Description: A recognizable clue: Roger Federer is a Swiss former professional tennis player. He was ranked as the world No. 1 in men's singles by the Association of Tennis Professionals (ATP) for 310 weeks.
-Source: https://en.wikipedia.org/wiki/Roger_Federer
-
-### Rafael Nadal
-- [x] Keep
-Category: sports
-Title: Rafael Nadal
-Description: A recognizable clue: Rafael "Rafa" Nadal Parera, 1st Marquess of Llevant de Mallorca is a Spanish former professional tennis player. He was ranked as the world No.
-Source: https://en.wikipedia.org/wiki/Rafael_Nadal
-
-### Venus Williams
-- [x] Keep
-Category: sports
-Title: Venus Williams
-Description: A recognizable clue: Venus Ebony Starr Williams is an American professional tennis player. She has been ranked as the world No. 1 in both women's singles and doubles by the Women's Tennis Association.
-Source: https://en.wikipedia.org/wiki/Venus_Williams
-
-### Katie Ledecky
-- [x] Keep
-Category: sports
-Title: Katie Ledecky
-Description: A recognizable clue: Kathleen Genevieve Ledecky is an American competitive swimmer. She is the most decorated female swimmer in history and the most decorated American woman in Olympic history.
-Source: https://en.wikipedia.org/wiki/Katie_Ledecky
-
-### Michael Phelps
-- [x] Keep
-Category: sports
-Title: Michael Phelps
-Description: A recognizable clue: Michael Fred Phelps II is an American former competitive swimmer. He won more Olympic medals than any other athlete, a total of 28 medals across four Olympic Games.
-Source: https://en.wikipedia.org/wiki/Michael_Phelps
-
-### Tony Hawk
-- [x] Keep
-Category: sports
-Title: Tony Hawk
-Description: A recognizable clue: Anthony Frank Hawk, nicknamed Birdman, is an American professional skateboarder, entrepreneur, and the owner of the skateboard company Birdhouse.
-Source: https://en.wikipedia.org/wiki/Tony_Hawk
-
-### Ronda Rousey
-- [x] Keep
-Category: sports
-Title: Ronda Rousey
-Description: A recognizable clue: Ronda Jean Rousey is an American mixed martial artist, actress, semi-retired professional wrestler, and former judoka.
-Source: https://en.wikipedia.org/wiki/Ronda_Rousey
-
-### Conor McGregor
-- [x] Keep
-Category: sports
-Title: Conor McGregor
-Description: A recognizable clue: Conor Anthony McGregor is an Irish professional mixed martial artist. He is a former Ultimate Fighting Championship (UFC) Featherweight and Lightweight Champion.
-Source: https://en.wikipedia.org/wiki/Conor_McGregor
-
-### Dale Earnhardt Jr.
-- [x] Keep
-Category: sports
-Title: Dale Earnhardt Jr.
-Description: A recognizable clue: Ralph Dale Earnhardt Jr., also known as "Dale Jr" or simply "Junior", is an American professional stock car racing driver, team owner.
-Source: https://en.wikipedia.org/wiki/Dale_Earnhardt_Jr.
-
-### Wayne Gretzky
-- [x] Keep
-Category: sports
-Title: Wayne Gretzky
-Description: A recognizable clue: Wayne Douglas Gretzky is a Canadian former professional ice hockey player and former head coach.
-Source: https://en.wikipedia.org/wiki/Wayne_Gretzky
-
-### Derek Jeter
-- [x] Keep
-Category: sports
-Title: Derek Jeter
-Description: A recognizable clue: Derek Sanderson Jeter, nicknamed "the Captain", is an American former professional baseball player, businessman, and baseball executive. A shortstop.
-Source: https://en.wikipedia.org/wiki/Derek_Jeter
-
-### Babe Ruth
-- [x] Keep
-Category: sports
-Title: Babe Ruth
-Description: A recognizable clue: George Herman "Babe" Ruth was an American professional baseball player whose career in Major League Baseball (MLB) spanned 22 seasons, from 1914 through 1935.
-Source: https://en.wikipedia.org/wiki/Babe_Ruth
-
-### Luka Dončić
-- [x] Keep
-Category: sports
-Title: Luka Dončić
-Description: A recognizable clue: Luka Dončić is a Slovenian professional basketball player for the Los Angeles Lakers of the National Basketball Association (NBA). Since his rookie season.
-Source: https://en.wikipedia.org/wiki/Luka_Don%C4%8Di%C4%87
-
-### Nikola Jokić
-- [x] Keep
-Category: sports
-Title: Nikola Jokić
-Description: A recognizable clue: Nikola Jokić is a Serbian professional basketball player who is a center for the Denver Nuggets of the National Basketball Association (NBA). Nicknamed "Joker".
-Source: https://en.wikipedia.org/wiki/Nikola_Joki%C4%87
-
-### Aaron Judge
-- [x] Keep
-Category: sports
-Title: Aaron Judge
-Description: A recognizable clue: Aaron James Judge is an American professional baseball right fielder for the New York Yankees of Major League Baseball (MLB).
-Source: https://en.wikipedia.org/wiki/Aaron_Judge
-
-### Coco Gauff
-- [x] Keep
-Category: sports
-Title: Coco Gauff
-Description: A recognizable clue: Cori Dionne "Coco" Gauff is an American professional tennis player. She has a career-high ranking of world No. 2 in singles and of world No. 1 in doubles by the WTA.
-Source: https://en.wikipedia.org/wiki/Coco_Gauff
 
 ## Fiction & Games
 
@@ -989,7 +813,7 @@ Description: A nature pick: Flamingos or flamingoes are a type of wading bird in
 Source: https://en.wikipedia.org/wiki/Flamingo
 
 ### Peafowl
-- [x] Keep
+- [] Keep
 Category: animals_nature
 Title: Peafowl
 Description: A nature pick: Peafowl is a common name for two bird species of the genus Pavo and one species of the closely related genus Afropavo within the tribe Pavonini of the family Phasianidae.

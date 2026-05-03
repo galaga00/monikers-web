@@ -56,27 +56,6 @@ const CATEGORY_DEFINITIONS = [
     ]
   },
   {
-    id: "sports",
-    label: "Sports",
-    seeds: [
-      "Simone Biles", "Lionel Messi", "Cristiano Ronaldo", "Stephen Curry", "Michael Jordan", "Serena Williams",
-      "Naomi Osaka", "Shohei Ohtani", "Patrick Mahomes", "Tom Brady", "Travis Kelce", "Caitlin Clark",
-      "Alex Morgan", "Megan Rapinoe", "Tiger Woods", "Shaquille O'Neal", "Kylian Mbappé", "Neymar",
-      "Roger Federer", "Rafael Nadal", "Venus Williams", "Katie Ledecky", "Michael Phelps", "Tony Hawk",
-      "Ronda Rousey", "Conor McGregor", "Dale Earnhardt Jr.", "Wayne Gretzky", "Mia Hamm", "Derek Jeter",
-      "Babe Ruth", "Usain Bolt", "Luka Dončić", "Nikola Jokić", "Aaron Judge", "Coco Gauff"
-    ],
-    categories: [
-      "National_Basketball_Association_players",
-      "National_Football_League_players",
-      "Major_League_Baseball_players",
-      "Association_football_players",
-      "Tennis_players",
-      "Olympic_gold_medalists_for_the_United_States",
-      "Professional_wrestlers"
-    ]
-  },
-  {
     id: "fiction_games",
     label: "Fiction & Games",
     seeds: [
@@ -365,7 +344,7 @@ function buildReviewMarkdown(cards) {
     "- Leave `- [x] Keep` checked for cards you like.",
     "- Uncheck it to remove a card: `- [ ] Keep`.",
     "- Edit `Title:`, `Description:`, or `Category:` directly if you want changes.",
-    "- Valid categories: people, music, sports, fiction_games, places_objects, animals_nature.",
+    "- Valid categories: people, music, fiction_games, places_objects, animals_nature.",
     "",
     "When you are done, tell Codex to apply the reviewed category cards.",
     ""
