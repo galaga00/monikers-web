@@ -362,8 +362,8 @@ function buildReviewMarkdown(cards) {
     `Generated: ${now}`,
     "",
     "How to review:",
-    "- Leave `Status: KEEP` for cards you like.",
-    "- Change `Status: KEEP` to `Status: DELETE` for cards you do not want.",
+    "- Leave `- [x] Keep` checked for cards you like.",
+    "- Uncheck it to remove a card: `- [ ] Keep`.",
     "- Edit `Title:`, `Description:`, or `Category:` directly if you want changes.",
     "- Valid categories: people, music, sports, fiction_games, places_objects, animals_nature.",
     "",
@@ -376,7 +376,7 @@ function buildReviewMarkdown(cards) {
     lines.push(`## ${category.label}`, "");
     for (const card of cardsForCategory) {
       lines.push(`### ${card.title}`);
-      lines.push(`Status: ${card.status}`);
+      lines.push("- [x] Keep");
       lines.push(`Category: ${card.category}`);
       lines.push(`Title: ${card.title}`);
       lines.push(`Description: ${card.description}`);

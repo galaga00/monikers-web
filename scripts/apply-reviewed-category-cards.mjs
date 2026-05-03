@@ -9,7 +9,7 @@ if (!fs.existsSync(REVIEW_PATH)) {
 }
 
 const text = fs.readFileSync(REVIEW_PATH, "utf8");
-const cards = parseReview(text).filter((card) => card.status === "KEEP");
+const cards = parseReview(text).filter((card) => card.keep);
 
 const deckCards = cards.map((card) => ({
   category: card.category,
@@ -33,12 +33,15 @@ function parseReview(markdown) {
   return blocks
     .map((block) => {
       const get = (label) => {
-        const match = block.match(new RegExp(`^${label}:\\\\s*(.+)$`, "m"));
-        return match?.[1]?.trim() ?? "";
+        const prefix = `${label}:`;
+        const line = block.split("\n").find((candidate) => candidate.startsWith(prefix));
+        return line?.slice(prefix.length).trim() ?? "";
       };
       const title = get("Title");
+      const checkbox = block.match(/^- \[(x|X| )\]\s*Keep\s*$/m);
+      const legacyStatus = get("Status").toUpperCase();
       return {
-        status: get("Status").toUpperCase(),
+        keep: checkbox ? checkbox[1].toLowerCase() === "x" : legacyStatus !== "DELETE",
         category: get("Category"),
         id: `${get("Category")}-${slugify(title)}`,
         title,
