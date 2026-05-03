@@ -754,9 +754,16 @@ function PassAndPlaySetup({
             <div className="field">
               <label htmlFor={`pass-player-${index}`}>Player {index + 1}</label>
               <input
-                className="input"
+                className={isDefaultPassAndPlayPlayerName(player.name, index) ? "input placeholder-value" : "input"}
                 id={`pass-player-${index}`}
                 value={player.name}
+                onFocus={() => {
+                  if (!isDefaultPassAndPlayPlayerName(player.name, index)) return;
+                  const nextPlayers = [...players];
+                  nextPlayers[index] = { ...player, name: "" };
+                  setPlayers(nextPlayers);
+                }}
+                placeholder={`Player ${index + 1}`}
                 onChange={(event) => {
                   const nextPlayers = [...players];
                   nextPlayers[index] = { ...player, name: event.target.value };
@@ -806,6 +813,10 @@ function PassAndPlaySetup({
       </div>
     </section>
   );
+}
+
+function isDefaultPassAndPlayPlayerName(name: string, index: number) {
+  return name === `Player ${index + 1}`;
 }
 
 function MobileNumberInput({
