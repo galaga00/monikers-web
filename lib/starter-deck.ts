@@ -146,6 +146,12 @@ export const STARTER_DECK: StarterDeckCard[] = [
   ...CATEGORY_EXPANSION_DECK
 ].filter((card) => !isSportsCard(card));
 
+const STARTER_DECK_CARD_IDS = new Set(STARTER_DECK.map((card) => card.id));
+
+export function isStarterDeckCardAllowed(cardId: string) {
+  return STARTER_DECK_CARD_IDS.has(cardId);
+}
+
 function isSportsCard(card: StarterDeckCard) {
   if (card.category === "sports") return true;
   if (card.id.startsWith("tmdb-movie-")) return false;

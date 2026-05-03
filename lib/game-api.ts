@@ -2,6 +2,7 @@
 
 import { hasSupabaseConfig, supabase } from "./supabase";
 import { buildPassPlayDeck, filterStarterDeckByCategories, getDefaultPassPlayCardCount, MIXED_PASS_PLAY_CATEGORY } from "./pass-play-deck";
+import { isStarterDeckCardAllowed } from "./starter-deck";
 import type { DraftCard, Game, GameEvent, GameSnapshot, Player, PlayMode, Prompt, PromptMode, Team, Turn } from "./types";
 import {
   createJoinCode,
@@ -308,7 +309,7 @@ export async function loadSnapshot(gameId: string) {
     players: playersResult.data as Player[],
     teams: teamsResult.data as Team[],
     prompts: promptsResult.data as Prompt[],
-    draftCards: draftCardsResult.data as DraftCard[],
+    draftCards: (draftCardsResult.data as DraftCard[]).filter((card) => isStarterDeckCardAllowed(card.card_id)),
     activeTurn: turnResult.data,
     latestUndoableEvent: eventResult.data
   } satisfies GameSnapshot;
@@ -445,14 +446,29 @@ export async function startGame(snapshot: GameSnapshot) {
 }
 
 async function ensureDraftHand(gameId: string, playerId: string, cardsToDeal: number, selectedCategories: string[]) {
-  const { count, error: countError } = await supabase
+  const { data: playerCards, error: playerCardsError } = await supabase
     .from("draft_cards")
-    .select("id", { count: "exact", head: true })
+    .select("id, card_id, sort_order")
     .eq("game_id", gameId)
     .eq("player_id", playerId);
 
-  if (countError) throw countError;
-  if ((count ?? 0) > 0) return;
+  if (playerCardsError) throw playerCardsError;
+
+  const existingPlayerCards = (playerCards ?? []) as Array<{ id: string; card_id: string; sort_order: number }>;
+  const invalidPlayerCards = existingPlayerCards.filter((card) => !isStarterDeckCardAllowed(card.card_id));
+  if (invalidPlayerCards.length > 0) {
+    const { error: deleteInvalidError } = await supabase
+      .from("draft_cards")
+      .delete()
+      .in(
+        "id",
+        invalidPlayerCards.map((card) => card.id)
+      );
+    if (deleteInvalidError) throw deleteInvalidError;
+  }
+
+  const validPlayerCards = existingPlayerCards.filter((card) => isStarterDeckCardAllowed(card.card_id));
+  if (validPlayerCards.length >= cardsToDeal) return;
 
   const { data: existingCards, error: existingError } = await supabase
     .from("draft_cards")
@@ -463,8 +479,10 @@ async function ensureDraftHand(gameId: string, playerId: string, cardsToDeal: nu
   const usedIds = new Set((existingCards ?? []).map((card) => card.card_id as string));
   const categoryCards = filterStarterDeckByCategories(selectedCategories);
   const unusedCards = categoryCards.filter((card) => !usedIds.has(card.id));
-  const sourceCards = unusedCards.length >= cardsToDeal ? unusedCards : categoryCards;
-  const hand = shuffle(sourceCards).slice(0, cardsToDeal);
+  const cardsNeeded = cardsToDeal - validPlayerCards.length;
+  const sourceCards = unusedCards.length >= cardsNeeded ? unusedCards : categoryCards;
+  const hand = shuffle(sourceCards).slice(0, cardsNeeded);
+  const nextSortOrder = validPlayerCards.reduce((max, card) => Math.max(max, card.sort_order), -1) + 1;
 
   const { error } = await supabase.from("draft_cards").insert(
     hand.map((card, sort_order) => ({
@@ -473,7 +491,7 @@ async function ensureDraftHand(gameId: string, playerId: string, cardsToDeal: nu
       card_id: card.id,
       title: card.title,
       description: card.description,
-      sort_order
+      sort_order: nextSortOrder + sort_order
     }))
   );
   if (error) throw error;
