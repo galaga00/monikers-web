@@ -1,3 +1,6 @@
+import { MIXED_PASS_PLAY_CATEGORY, PASS_PLAY_CATEGORY_OPTIONS } from "./pass-play-deck";
+import type { PassPlayCategoryId } from "./pass-play-deck";
+
 export const SIMPLE_PROMPT_CATEGORIES = [
   "Celebrity",
   "Movie",
@@ -31,6 +34,89 @@ export const SIMPLE_PROMPT_CATEGORIES = [
   "Holiday"
 ];
 
+const CATEGORY_GROUPS: Record<PassPlayCategoryId, string[]> = {
+  people: [
+    "Celebrity",
+    "Historical figure",
+    "Athlete",
+    "Musician",
+    "Comedian",
+    "Famous internet person",
+    "Someone in the room",
+    "Reality TV person"
+  ],
+  movies: [
+    "Movie",
+    "TV show",
+    "Movie character",
+    "TV character",
+    "Actor",
+    "Animated movie",
+    "Movie villain",
+    "Streaming show"
+  ],
+  music: [
+    "Song",
+    "Musician",
+    "Band",
+    "Pop star",
+    "Music video",
+    "Concert moment",
+    "Album",
+    "Singer"
+  ],
+  sports: [
+    "Athlete",
+    "Sport",
+    "Sports team",
+    "Olympic sport",
+    "Stadium",
+    "Sports announcer",
+    "Mascot",
+    "Famous sports moment"
+  ],
+  fiction_games: [
+    "Fictional character",
+    "Superhero",
+    "Villain",
+    "Video game",
+    "Board game",
+    "Cartoon character",
+    "Book character",
+    "Fantasy creature"
+  ],
+  places_objects: [
+    "Household object",
+    "Landmark",
+    "City",
+    "Vehicle",
+    "Brand",
+    "Toy",
+    "App or website",
+    "Famous place"
+  ],
+  situations: [
+    "A celebrity doing a chore",
+    "An animal with a job",
+    "A fictional character at the grocery store",
+    "A historical figure using modern technology",
+    "A musician playing a different sport",
+    "A superhero with a boring problem",
+    "A villain doing customer service",
+    "A movie character at a wedding"
+  ],
+  animals_nature: [
+    "Animal",
+    "Dinosaur",
+    "Sea creature",
+    "Bird",
+    "Plant or flower",
+    "Weather event",
+    "Natural landmark",
+    "Pet"
+  ]
+};
+
 export const COMBO_PROMPT_CATEGORIES = [
   "A celebrity doing a chore",
   "An animal with a job",
@@ -49,11 +135,19 @@ export const COMBO_PROMPT_CATEGORIES = [
   "A brand mascot having a bad day"
 ];
 
-export function getPromptCategoriesForPlayer(gameId: string, playerId: string, count: number) {
+export function getPromptCategoriesForPlayer(gameId: string, playerId: string, count: number, selectedCategoryIds: string[] = [MIXED_PASS_PLAY_CATEGORY]) {
   const seed = hashString(`${gameId}:${playerId}`);
-  const simple = shuffleWithSeed(SIMPLE_PROMPT_CATEGORIES, seed);
-  const combo = shuffleWithSeed(COMBO_PROMPT_CATEGORIES, seed * 13 + 7);
-  const comboTarget = Math.max(1, Math.round(count * 0.25));
+  const selectedGroups = getSelectedGroups(selectedCategoryIds);
+  const selectedSimple = selectedGroups.flatMap((group) => CATEGORY_GROUPS[group]).filter((category) => !COMBO_PROMPT_CATEGORIES.includes(category));
+  const selectedCombo = selectedGroups.includes("situations") ? CATEGORY_GROUPS.situations : [];
+  const simple = shuffleWithSeed(selectedSimple.length > 0 ? selectedSimple : SIMPLE_PROMPT_CATEGORIES, seed);
+  const combo = shuffleWithSeed(selectedCombo.length > 0 ? selectedCombo : COMBO_PROMPT_CATEGORIES, seed * 13 + 7);
+  const comboTarget =
+    selectedCombo.length > 0 && selectedSimple.length === 0
+      ? count
+      : selectedGroups.includes("situations")
+        ? Math.max(1, Math.round(count * 0.25))
+        : 0;
   const categories: string[] = [];
 
   for (let index = 0; index < count; index += 1) {
@@ -62,6 +156,16 @@ export function getPromptCategoriesForPlayer(gameId: string, playerId: string, c
   }
 
   return shuffleWithSeed(categories, seed * 31 + 11);
+}
+
+function getSelectedGroups(selectedCategoryIds: string[]) {
+  const useMixed = selectedCategoryIds.includes(MIXED_PASS_PLAY_CATEGORY) || selectedCategoryIds.length === 0;
+  if (useMixed) return PASS_PLAY_CATEGORY_OPTIONS.map((category) => category.id);
+
+  const validGroups = selectedCategoryIds.filter((categoryId): categoryId is PassPlayCategoryId =>
+    PASS_PLAY_CATEGORY_OPTIONS.some((category) => category.id === categoryId)
+  );
+  return validGroups.length > 0 ? validGroups : PASS_PLAY_CATEGORY_OPTIONS.map((category) => category.id);
 }
 
 function hashString(value: string) {

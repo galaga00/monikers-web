@@ -45,6 +45,7 @@ export async function createGame(hostName: string) {
         pass_play_card_count: getDefaultPassPlayCardCount(4),
         team_assignment_mode: DEFAULT_TEAM_ASSIGNMENT_MODE,
         prompt_mode: "free",
+        prompt_categories: [MIXED_PASS_PLAY_CATEGORY],
         play_mode: DEFAULT_PLAY_MODE,
         paused_at: null
       })
@@ -96,7 +97,8 @@ export async function saveGameSetup(
   playMode: PlayMode = DEFAULT_PLAY_MODE,
   passAndPlayPlayers: Array<{ name: string; teamIndex: number }> = [],
   passPlayCardCount = getDefaultPassPlayCardCount(passAndPlayPlayers.length || 4),
-  passPlayCategories: string[] = [MIXED_PASS_PLAY_CATEGORY]
+  passPlayCategories: string[] = [MIXED_PASS_PLAY_CATEGORY],
+  promptCategories: string[] = [MIXED_PASS_PLAY_CATEGORY]
 ) {
   ensureSupabaseConfig();
   const cleanPromptsPerPlayer = Math.min(20, Math.max(1, Math.round(promptsPerPlayer)));
@@ -115,6 +117,7 @@ export async function saveGameSetup(
     }))
     .slice(0, 40);
   const cleanPassPlayCardCount = Math.min(80, Math.max(10, Math.round(passPlayCardCount)));
+  const cleanPromptCategories = promptCategories.length > 0 ? promptCategories : [MIXED_PASS_PLAY_CATEGORY];
   const cleanExpectedPlayers = expectedPlayers ? Math.min(200, Math.max(1, Math.round(expectedPlayers))) : null;
   const cleanTurnDurationSeconds = TURN_DURATION_OPTIONS.includes(turnDurationSeconds as (typeof TURN_DURATION_OPTIONS)[number])
     ? turnDurationSeconds
@@ -151,6 +154,7 @@ export async function saveGameSetup(
       expected_players: cleanPlayMode === "pass_and_play" ? Math.max(cleanPassAndPlayPlayers.length, 1) : cleanExpectedPlayers,
       team_assignment_mode: cleanPlayMode === "pass_and_play" ? "auto" : teamAssignmentMode,
       prompt_mode: cleanPromptMode,
+      prompt_categories: cleanPlayMode === "pass_and_play" ? passPlayCategories : cleanPromptCategories,
       play_mode: cleanPlayMode,
       phase: "lobby"
     })

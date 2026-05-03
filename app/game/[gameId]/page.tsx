@@ -79,6 +79,7 @@ export default function GamePage() {
   const [expectedPlayers, setExpectedPlayers] = useState("");
   const [teamAssignmentMode, setTeamAssignmentMode] = useState<TeamAssignmentMode>(DEFAULT_TEAM_ASSIGNMENT_MODE);
   const [promptMode, setPromptMode] = useState<PromptMode>("free");
+  const [promptCategories, setPromptCategories] = useState<string[]>([MIXED_PASS_PLAY_CATEGORY]);
   const [playMode, setPlayMode] = useState<PlayMode>(DEFAULT_PLAY_MODE);
   const [passAndPlayCardCount, setPassAndPlayCardCount] = useState(getDefaultPassPlayCardCount(4));
   const [passAndPlayCategories, setPassAndPlayCategories] = useState<string[]>([MIXED_PASS_PLAY_CATEGORY]);
@@ -176,7 +177,12 @@ export default function GamePage() {
     if (!snapshot || !me) return;
     await runAction(async () => {
       if (snapshot.game.prompt_mode === "category") {
-        const categories = getPromptCategoriesForPlayer(snapshot.game.id, me.id, snapshot.game.prompts_per_player);
+        const categories = getPromptCategoriesForPlayer(
+          snapshot.game.id,
+          me.id,
+          snapshot.game.prompts_per_player,
+          snapshot.game.prompt_categories ?? [MIXED_PASS_PLAY_CATEGORY]
+        );
         const existingPromptCount = getPromptCountForPlayer(me.id, snapshot.prompts);
         await submitPrompts(
           snapshot.game.id,
@@ -221,7 +227,8 @@ export default function GamePage() {
         playMode,
         passAndPlayPlayers,
         passAndPlayCardCount,
-        passAndPlayCategories
+        passAndPlayCategories,
+        promptCategories
       )
     );
   }
@@ -348,6 +355,8 @@ export default function GamePage() {
           setTeamAssignmentMode={setTeamAssignmentMode}
           promptMode={promptMode}
           setPromptMode={setPromptMode}
+          promptCategories={promptCategories}
+          setPromptCategories={setPromptCategories}
           playMode={playMode}
           setPlayMode={setPlayMode}
           passAndPlayCardCount={passAndPlayCardCount}
@@ -430,6 +439,8 @@ function Setup({
   setTeamAssignmentMode,
   promptMode,
   setPromptMode,
+  promptCategories,
+  setPromptCategories,
   playMode,
   setPlayMode,
   passAndPlayCardCount,
@@ -461,6 +472,8 @@ function Setup({
   setTeamAssignmentMode: (mode: TeamAssignmentMode) => void;
   promptMode: PromptMode;
   setPromptMode: (mode: PromptMode) => void;
+  promptCategories: string[];
+  setPromptCategories: (categories: string[]) => void;
   playMode: PlayMode;
   setPlayMode: (mode: PlayMode) => void;
   passAndPlayCardCount: number;
@@ -618,6 +631,13 @@ function Setup({
           </div>
         </div>
       ) : null}
+      {playMode === "multi_device" && promptMode === "category" ? (
+        <CategorySelector
+          categories={promptCategories}
+          helpText="Players will be asked for prompt ideas from these categories. Mixed spreads the prompts across the full set."
+          setCategories={setPromptCategories}
+        />
+      ) : null}
       {playMode === "multi_device" && promptMode === "deck" ? (
         <div className="split">
           <div className="field">
@@ -695,19 +715,6 @@ function PassAndPlaySetup({
     players: players.filter((player) => player.teamIndex === teamIndex)
   }));
 
-  function toggleCategory(categoryId: string) {
-    if (categoryId === MIXED_PASS_PLAY_CATEGORY) {
-      setCategories([MIXED_PASS_PLAY_CATEGORY]);
-      return;
-    }
-
-    const withoutMixed = categories.filter((category) => category !== MIXED_PASS_PLAY_CATEGORY);
-    const nextCategories = withoutMixed.includes(categoryId)
-      ? withoutMixed.filter((category) => category !== categoryId)
-      : [...withoutMixed, categoryId];
-    setCategories(nextCategories.length > 0 ? nextCategories : [MIXED_PASS_PLAY_CATEGORY]);
-  }
-
   return (
     <section className="setup-panel stack">
       <div className="split">
@@ -722,30 +729,7 @@ function PassAndPlaySetup({
         </div>
       </div>
 
-      <div className="field">
-        <label>Categories</label>
-        <div className="category-toggle-grid">
-          <button
-            className={categories.includes(MIXED_PASS_PLAY_CATEGORY) ? "team-choice selected" : "team-choice"}
-            type="button"
-            onClick={() => toggleCategory(MIXED_PASS_PLAY_CATEGORY)}
-          >
-            <strong>Mixed</strong>
-            <span>Balanced pull</span>
-          </button>
-          {PASS_PLAY_CATEGORY_OPTIONS.map((category) => (
-            <button
-              className={categories.includes(category.id) ? "team-choice selected" : "team-choice"}
-              key={category.id}
-              type="button"
-              onClick={() => toggleCategory(category.id)}
-            >
-              <strong>{category.label}</strong>
-              <span>{categories.includes(category.id) ? "Included" : "Tap to include"}</span>
-            </button>
-          ))}
-        </div>
-      </div>
+      <CategorySelector categories={categories} setCategories={setCategories} />
 
       <div className="stack">
         <h3>Players</h3>
@@ -812,6 +796,57 @@ function PassAndPlaySetup({
         ))}
       </div>
     </section>
+  );
+}
+
+function CategorySelector({
+  categories,
+  helpText,
+  setCategories
+}: {
+  categories: string[];
+  helpText?: string;
+  setCategories: (categories: string[]) => void;
+}) {
+  function toggleCategory(categoryId: string) {
+    if (categoryId === MIXED_PASS_PLAY_CATEGORY) {
+      setCategories([MIXED_PASS_PLAY_CATEGORY]);
+      return;
+    }
+
+    const withoutMixed = categories.filter((category) => category !== MIXED_PASS_PLAY_CATEGORY);
+    const nextCategories = withoutMixed.includes(categoryId)
+      ? withoutMixed.filter((category) => category !== categoryId)
+      : [...withoutMixed, categoryId];
+    setCategories(nextCategories.length > 0 ? nextCategories : [MIXED_PASS_PLAY_CATEGORY]);
+  }
+
+  return (
+    <div className="field">
+      <label>Categories</label>
+      {helpText ? <p className="muted tiny">{helpText}</p> : null}
+      <div className="category-toggle-grid">
+        <button
+          className={categories.includes(MIXED_PASS_PLAY_CATEGORY) ? "team-choice selected" : "team-choice"}
+          type="button"
+          onClick={() => toggleCategory(MIXED_PASS_PLAY_CATEGORY)}
+        >
+          <strong>Mixed</strong>
+          <span>Balanced pull</span>
+        </button>
+        {PASS_PLAY_CATEGORY_OPTIONS.map((category) => (
+          <button
+            className={categories.includes(category.id) ? "team-choice selected" : "team-choice"}
+            key={category.id}
+            type="button"
+            onClick={() => toggleCategory(category.id)}
+          >
+            <strong>{category.label}</strong>
+            <span>{categories.includes(category.id) ? "Included" : "Tap to include"}</span>
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -977,7 +1012,12 @@ function Lobby({
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean).length;
-  const categoryPrompts = getPromptCategoriesForPlayer(snapshot.game.id, me.id, requiredPromptCount);
+  const categoryPrompts = getPromptCategoriesForPlayer(
+    snapshot.game.id,
+    me.id,
+    requiredPromptCount,
+    snapshot.game.prompt_categories ?? [MIXED_PASS_PLAY_CATEGORY]
+  );
   const remainingCategories = categoryPrompts.slice(submittedPromptCount, submittedPromptCount + myPromptsLeft);
   const pendingCategoryPromptCount = categoryPromptValues.filter((value) => value.trim()).length;
   const pendingPromptCount = snapshot.game.prompt_mode === "category" ? pendingCategoryPromptCount : pendingPromptLines;

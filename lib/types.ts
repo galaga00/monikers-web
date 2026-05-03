@@ -21,6 +21,7 @@ export type Game = {
   expected_players: number | null;
   team_assignment_mode: TeamAssignmentMode;
   prompt_mode: PromptMode;
+  prompt_categories: string[] | null;
   play_mode: PlayMode;
   paused_at: string | null;
   created_at: string;
