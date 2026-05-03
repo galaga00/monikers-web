@@ -177,13 +177,18 @@ export default function GamePage() {
     if (!snapshot || !me) return;
     await runAction(async () => {
       if (snapshot.game.prompt_mode === "category") {
+        const promptTarget =
+          snapshot.game.play_mode === "pass_and_play"
+            ? snapshot.players.length * snapshot.game.prompts_per_player
+            : snapshot.game.prompts_per_player;
         const categories = getPromptCategoriesForPlayer(
           snapshot.game.id,
           me.id,
-          snapshot.game.prompts_per_player,
+          promptTarget,
           snapshot.game.prompt_categories ?? [MIXED_PASS_PLAY_CATEGORY]
         );
-        const existingPromptCount = getPromptCountForPlayer(me.id, snapshot.prompts);
+        const existingPromptCount =
+          snapshot.game.play_mode === "pass_and_play" ? snapshot.prompts.length : getPromptCountForPlayer(me.id, snapshot.prompts);
         await submitPrompts(
           snapshot.game.id,
           me.id,
@@ -512,7 +517,7 @@ function Setup({
             type="button"
             onClick={() => {
               setPlayMode("pass_and_play");
-              if (promptMode === "deck") setPromptMode("free");
+              if (playMode !== "pass_and_play") setPromptMode("deck");
             }}
           >
             Pass & Play
@@ -525,10 +530,14 @@ function Setup({
           categories={passAndPlayCategories}
           playerCount={passAndPlayPlayers.length}
           players={passAndPlayPlayers}
+          promptMode={promptMode}
+          promptsPerPlayer={promptsPerPlayer}
           setCardCount={setPassAndPlayCardCount}
           setCategories={setPassAndPlayCategories}
           setPlayerCount={setPassAndPlayPlayerCount}
           setPlayers={setPassAndPlayPlayers}
+          setPromptMode={setPromptMode}
+          setPromptsPerPlayer={setPromptsPerPlayer}
           teamCount={teamCount}
           teamNames={teamNames}
         />
@@ -700,10 +709,14 @@ function PassAndPlaySetup({
   categories,
   playerCount,
   players,
+  promptMode,
+  promptsPerPlayer,
   setCardCount,
   setCategories,
   setPlayerCount,
   setPlayers,
+  setPromptMode,
+  setPromptsPerPlayer,
   teamCount,
   teamNames
 }: {
@@ -711,10 +724,14 @@ function PassAndPlaySetup({
   categories: string[];
   playerCount: number;
   players: PassAndPlaySetupPlayer[];
+  promptMode: PromptMode;
+  promptsPerPlayer: number;
   setCardCount: (count: number) => void;
   setCategories: (categories: string[]) => void;
   setPlayerCount: (count: number) => void;
   setPlayers: (players: PassAndPlaySetupPlayer[]) => void;
+  setPromptMode: (mode: PromptMode) => void;
+  setPromptsPerPlayer: (count: number) => void;
   teamCount: number;
   teamNames: string[];
 }) {
@@ -725,19 +742,54 @@ function PassAndPlaySetup({
 
   return (
     <section className="setup-panel stack">
+      <div className="field">
+        <label>Pass & Play prompts</label>
+        <div className="segmented">
+          <button className={promptMode === "deck" ? "segment active" : "segment"} type="button" onClick={() => setPromptMode("deck")}>
+            Built-in deck
+          </button>
+          <button className={promptMode === "free" ? "segment active" : "segment"} type="button" onClick={() => setPromptMode("free")}>
+            Kids write
+          </button>
+          <button className={promptMode === "category" ? "segment active" : "segment"} type="button" onClick={() => setPromptMode("category")}>
+            Category prompts
+          </button>
+        </div>
+      </div>
+
       <div className="split">
         <div className="field">
           <label htmlFor="passPlayerCount">Players</label>
           <MobileNumberInput id="passPlayerCount" min={2} max={40} value={playerCount} onValueChange={setPlayerCount} />
         </div>
-        <div className="field">
-          <label htmlFor="passCardCount">Cards in game</label>
-          <MobileNumberInput id="passCardCount" min={10} max={80} value={cardCount} onValueChange={setCardCount} />
-          <p className="muted tiny">Default adjusts by player count to stay near a 40-50 card game.</p>
-        </div>
+        {promptMode === "deck" ? (
+          <div className="field">
+            <label htmlFor="passCardCount">Cards in game</label>
+            <MobileNumberInput id="passCardCount" min={10} max={80} value={cardCount} onValueChange={setCardCount} />
+            <p className="muted tiny">Default adjusts by player count to stay near a 40-50 card game.</p>
+          </div>
+        ) : (
+          <div className="field">
+            <label htmlFor="passPromptCount">Prompts per player</label>
+            <MobileNumberInput id="passPromptCount" min={1} max={20} value={promptsPerPlayer} onValueChange={setPromptsPerPlayer} />
+            <p className="muted tiny">Pass the phone around during the lobby and collect this many prompts per player.</p>
+          </div>
+        )}
       </div>
 
-      <CategorySelector categories={categories} setCategories={setCategories} />
+      <CategorySelector
+        categories={categories}
+        helpText={
+          promptMode === "deck"
+            ? "Cards will be loaded from these categories. Mixed pulls from the full deck."
+            : promptMode === "category"
+            ? "The shared prompt form will ask for ideas from these categories."
+            : "Tap a category to switch from free writing to category prompts."
+        }
+        inactive={promptMode === "free"}
+        onActivate={promptMode === "free" ? () => setPromptMode("category") : undefined}
+        setCategories={setCategories}
+      />
 
       <div className="stack">
         <h3>Players</h3>
@@ -1018,9 +1070,11 @@ function Lobby({
   const myDraftCards = snapshot.draftCards.filter((card) => card.player_id === me.id);
   const myDraftSelectedCount = getDraftSelectedCountForPlayer(me.id, snapshot);
   const passAndPlay = isPassAndPlay(snapshot);
+  const isDeckDraft = snapshot.game.prompt_mode === "deck";
+  const passAndPlayDeck = passAndPlay && isDeckDraft;
   const sharedPromptTarget = snapshot.players.length * snapshot.game.prompts_per_player;
   const submittedPromptCount = passAndPlay ? snapshot.prompts.length : myPromptCount;
-  const requiredPromptCount = passAndPlay ? sharedPromptTarget : snapshot.game.prompts_per_player;
+  const requiredPromptCount = passAndPlayDeck ? snapshot.game.pass_play_card_count : passAndPlay ? sharedPromptTarget : snapshot.game.prompts_per_player;
   const myPromptsLeft = Math.max(0, requiredPromptCount - submittedPromptCount);
   const pendingPromptLines = promptText
     .split("\n")
@@ -1035,13 +1089,12 @@ function Lobby({
   const remainingCategories = categoryPrompts.slice(submittedPromptCount, submittedPromptCount + myPromptsLeft);
   const pendingCategoryPromptCount = categoryPromptValues.filter((value) => value.trim()).length;
   const pendingPromptCount = snapshot.game.prompt_mode === "category" ? pendingCategoryPromptCount : pendingPromptLines;
-  const isDeckDraft = snapshot.game.prompt_mode === "deck";
   const canSubmitPrompts = !isDeckDraft && myPromptsLeft > 0 && pendingPromptCount > 0;
   const canSelfSwitchTeams = snapshot.game.team_assignment_mode === "choose" && !passAndPlay;
   const needsTeam = canSelfSwitchTeams && !me.team_id;
   const allPlayersHaveTeams = snapshot.players.every((player) => Boolean(player.team_id));
   const canStart = promptProgress.isComplete && allPlayersHaveTeams;
-  const progressLabel = passAndPlay ? "Card deck" : isDeckDraft ? "Draft progress" : "Prompt progress";
+  const progressLabel = passAndPlayDeck ? "Card deck" : isDeckDraft ? "Draft progress" : "Prompt progress";
   const teamBalanceWarning = getTeamBalanceWarning(snapshot);
 
   return (
@@ -1095,7 +1148,7 @@ function Lobby({
         </form>
       ) : null}
 
-      {passAndPlay ? (
+      {passAndPlayDeck ? (
         <section className="card stack">
           <h2>Card deck ready</h2>
           <p className="muted">
@@ -1181,10 +1234,12 @@ function Lobby({
           <h2>Host controls</h2>
           <p className="muted">
             Start when everyone reaches{" "}
-            {isDeckDraft
-              ? `${snapshot.game.cards_kept_per_player} / ${snapshot.game.cards_kept_per_player} cards`
-              : passAndPlay
-                ? `${sharedPromptTarget} shared prompts`
+            {passAndPlayDeck
+              ? `${snapshot.game.pass_play_card_count} loaded cards`
+              : isDeckDraft
+                ? `${snapshot.game.cards_kept_per_player} / ${snapshot.game.cards_kept_per_player} cards`
+                : passAndPlay
+                  ? `${sharedPromptTarget} shared prompts`
               : `${snapshot.game.prompts_per_player} / ${snapshot.game.prompts_per_player} prompts`}.
             {!allPlayersHaveTeams ? " Everyone also needs a team." : ""}
           </p>

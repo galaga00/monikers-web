@@ -64,11 +64,16 @@ export function hasPlayerDrafted(playerId: string, snapshot: GameSnapshot) {
 
 export function getPromptProgress(snapshot: GameSnapshot) {
   if (snapshot.game.play_mode === "pass_and_play") {
+    const requiredTotal =
+      snapshot.game.prompt_mode === "deck"
+        ? snapshot.game.pass_play_card_count
+        : snapshot.players.length * snapshot.game.prompts_per_player;
+
     return {
       submittedTotal: snapshot.prompts.length,
-      requiredTotal: snapshot.game.pass_play_card_count,
-      expectedTotal: snapshot.game.pass_play_card_count,
-      isComplete: snapshot.prompts.length >= snapshot.game.pass_play_card_count
+      requiredTotal,
+      expectedTotal: requiredTotal,
+      isComplete: snapshot.prompts.length >= requiredTotal
     };
   }
 
