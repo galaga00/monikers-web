@@ -101,13 +101,6 @@ const CORE_DECK: StarterDeckCard[] = [
   { id: "zombie-apocalypse", title: "Zombie Apocalypse", description: "A survival scenario with slow monsters, barricades, supplies, and questionable group decisions." }
 ];
 
-const SPORTS_CARD_IDS = new Set([
-  "tmdb-movie-cars",
-  "tmdb-movie-f1",
-  "tmdb-movie-the-art-of-racing-in-the-rain",
-  "tmdb-movie-point-break"
-]);
-
 const SPORTS_CARD_PATTERNS = [
   /\bbasketball\b/,
   /\bbaseball\b/,
@@ -155,7 +148,7 @@ export const STARTER_DECK: StarterDeckCard[] = [
 
 function isSportsCard(card: StarterDeckCard) {
   if (card.category === "sports") return true;
-  if (SPORTS_CARD_IDS.has(card.id)) return true;
+  if (card.id.startsWith("tmdb-movie-")) return false;
 
   const text = `${card.id} ${card.title} ${card.description}`.toLowerCase();
   return SPORTS_CARD_PATTERNS.some((pattern) => pattern.test(text));
