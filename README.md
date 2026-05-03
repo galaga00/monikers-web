@@ -99,6 +99,29 @@ npm run debug:seed
 
 The script prints a join code and game URL. The seeded game starts in the lobby so you can test starting a round from the UI.
 
+## Card Review Pipeline
+
+To generate new category card candidates from Wikidata and Wikipedia:
+
+```bash
+npm run cards:review
+```
+
+This writes:
+
+- `card-review/category-candidates.md` for human review.
+- `card-review/category-candidates.json` for machine-readable backup.
+
+Review the Markdown file directly. Leave `Status: KEEP` for cards you like, change it to `Status: DELETE` for cards you do not want, and edit `Title:`, `Description:`, or `Category:` as needed.
+
+After review, apply the kept cards into the deck:
+
+```bash
+npm run cards:apply-reviewed
+```
+
+That writes `lib/category-expansion-deck.ts`, which is included in the starter deck.
+
 ## MVP Scope
 
 Included:

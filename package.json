@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "debug:seed": "tsx scripts/seed-debug-game.ts"
+    "debug:seed": "tsx scripts/seed-debug-game.ts",
+    "cards:review": "node scripts/generate-category-review.mjs",
+    "cards:apply-reviewed": "node scripts/apply-reviewed-category-cards.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",

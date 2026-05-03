@@ -1,10 +1,12 @@
 import { TMDB_DECK } from "./tmdb-deck";
 import { WIKIPEDIA_DECK } from "./wikipedia-deck";
+import { CATEGORY_EXPANSION_DECK } from "./category-expansion-deck";
 
 export type StarterDeckCard = {
   id: string;
   title: string;
   description: string;
+  category?: string;
 };
 
 const CORE_DECK: StarterDeckCard[] = [
@@ -102,4 +104,4 @@ const CORE_DECK: StarterDeckCard[] = [
   { id: "zombie-apocalypse", title: "Zombie Apocalypse", description: "A survival scenario with slow monsters, barricades, supplies, and questionable group decisions." }
 ];
 
-export const STARTER_DECK: StarterDeckCard[] = [...CORE_DECK, ...TMDB_DECK, ...WIKIPEDIA_DECK];
+export const STARTER_DECK: StarterDeckCard[] = [...CORE_DECK, ...TMDB_DECK, ...WIKIPEDIA_DECK, ...CATEGORY_EXPANSION_DECK];

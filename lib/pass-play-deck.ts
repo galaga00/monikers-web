@@ -82,6 +82,10 @@ function getSelectedPassPlayCategoryIds(selectedCategories: string[]) {
 }
 
 function getCardCategory(card: StarterDeckCard): PassPlayCategoryId {
+  if (card.category && PASS_PLAY_CATEGORY_OPTIONS.some((option) => option.id === card.category)) {
+    return card.category as PassPlayCategoryId;
+  }
+
   const text = `${card.id} ${card.title} ${card.description}`.toLowerCase();
 
   if (card.id.startsWith("tmdb-movie") || hasAny(text, ["movie", "film", "tv series", "hbo", "sitcom"])) return "movies";
