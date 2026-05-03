@@ -2,6 +2,7 @@
 
 import { hasSupabaseConfig, supabase } from "./supabase";
 import { STARTER_DECK } from "./starter-deck";
+import { buildPassPlayDeck, getDefaultPassPlayCardCount, MIXED_PASS_PLAY_CATEGORY } from "./pass-play-deck";
 import type { DraftCard, Game, GameEvent, GameSnapshot, Player, PlayMode, Prompt, PromptMode, Team, Turn } from "./types";
 import {
   createJoinCode,
@@ -41,6 +42,7 @@ export async function createGame(hostName: string) {
         turn_duration_seconds: TURN_DURATION_SECONDS,
         cards_dealt_per_player: DEFAULT_CARDS_DEALT_PER_PLAYER,
         cards_kept_per_player: DEFAULT_CARDS_KEPT_PER_PLAYER,
+        pass_play_card_count: getDefaultPassPlayCardCount(4),
         team_assignment_mode: DEFAULT_TEAM_ASSIGNMENT_MODE,
         prompt_mode: "free",
         play_mode: DEFAULT_PLAY_MODE,
@@ -92,7 +94,9 @@ export async function saveGameSetup(
   cardsKeptPerPlayer = DEFAULT_CARDS_KEPT_PER_PLAYER,
   turnDurationSeconds = TURN_DURATION_SECONDS,
   playMode: PlayMode = DEFAULT_PLAY_MODE,
-  passAndPlayNames: string[] = []
+  passAndPlayPlayers: Array<{ name: string; teamIndex: number }> = [],
+  passPlayCardCount = getDefaultPassPlayCardCount(passAndPlayPlayers.length || 4),
+  passPlayCategories: string[] = [MIXED_PASS_PLAY_CATEGORY]
 ) {
   ensureSupabaseConfig();
   const cleanPromptsPerPlayer = Math.min(20, Math.max(1, Math.round(promptsPerPlayer)));
@@ -104,7 +108,13 @@ export async function saveGameSetup(
   const cleanTeamNames = teamNames.map((name, index) => name.trim() || `Team ${index + 1}`).slice(0, 12);
   const cleanPlayMode: PlayMode = playMode === "pass_and_play" ? "pass_and_play" : DEFAULT_PLAY_MODE;
   const cleanPromptMode: PromptMode = cleanPlayMode === "pass_and_play" && promptMode === "deck" ? "free" : promptMode;
-  const cleanPassAndPlayNames = passAndPlayNames.map((name) => name.trim()).filter(Boolean).slice(0, 40);
+  const cleanPassAndPlayPlayers = passAndPlayPlayers
+    .map((player, index) => ({
+      name: player.name.trim() || `Player ${index + 1}`,
+      teamIndex: Math.max(0, Math.round(player.teamIndex || 0))
+    }))
+    .slice(0, 40);
+  const cleanPassPlayCardCount = Math.min(80, Math.max(10, Math.round(passPlayCardCount)));
   const cleanExpectedPlayers = expectedPlayers ? Math.min(200, Math.max(1, Math.round(expectedPlayers))) : null;
   const cleanTurnDurationSeconds = TURN_DURATION_OPTIONS.includes(turnDurationSeconds as (typeof TURN_DURATION_OPTIONS)[number])
     ? turnDurationSeconds
@@ -137,7 +147,8 @@ export async function saveGameSetup(
       turn_duration_seconds: cleanTurnDurationSeconds,
       cards_dealt_per_player: cleanCardsDealtPerPlayer,
       cards_kept_per_player: cleanCardsKeptPerPlayer,
-      expected_players: cleanPlayMode === "pass_and_play" ? Math.max(cleanPassAndPlayNames.length, 1) : cleanExpectedPlayers,
+      pass_play_card_count: cleanPassPlayCardCount,
+      expected_players: cleanPlayMode === "pass_and_play" ? Math.max(cleanPassAndPlayPlayers.length, 1) : cleanExpectedPlayers,
       team_assignment_mode: cleanPlayMode === "pass_and_play" ? "auto" : teamAssignmentMode,
       prompt_mode: cleanPromptMode,
       play_mode: cleanPlayMode,
@@ -156,29 +167,46 @@ export async function saveGameSetup(
       .single<Player>();
     if (hostError) throw hostError;
 
-    const names = cleanPassAndPlayNames.length > 0 ? cleanPassAndPlayNames : [host.name || "Player 1"];
-    const hostName = names[0] ?? host.name;
+    const players = cleanPassAndPlayPlayers.length > 0 ? cleanPassAndPlayPlayers : [{ name: host.name || "Player 1", teamIndex: 0 }];
+    const hostPlayer = players[0] ?? { name: host.name, teamIndex: 0 };
     const hostTeam = (teams as Team[])[0];
     const { error: updateHostError } = await supabase
       .from("players")
-      .update({ name: hostName, team_id: hostTeam.id, has_submitted: false })
+      .update({
+        name: hostPlayer.name,
+        team_id: (teams as Team[])[hostPlayer.teamIndex % Math.max((teams as Team[]).length, 1)]?.id ?? hostTeam.id,
+        has_submitted: true
+      })
       .eq("id", host.id);
     if (updateHostError) throw updateHostError;
 
     const { error: nonHostDeleteError } = await supabase.from("players").delete().eq("game_id", gameId).eq("is_host", false);
     if (nonHostDeleteError) throw nonHostDeleteError;
 
-    const extraPlayers = names.slice(1);
+    const extraPlayers = players.slice(1);
     if (extraPlayers.length > 0) {
       const { error: playerError } = await supabase.from("players").insert(
-        extraPlayers.map((name, index) => ({
+        extraPlayers.map((player) => ({
           game_id: gameId,
-          name,
-          team_id: (teams as Team[])[(index + 1) % Math.max((teams as Team[]).length, 1)]?.id ?? firstTeam.id
+          name: player.name,
+          team_id: (teams as Team[])[player.teamIndex % Math.max((teams as Team[]).length, 1)]?.id ?? firstTeam.id,
+          has_submitted: true
         }))
       );
       if (playerError) throw playerError;
     }
+
+    const promptDeck = buildPassPlayDeck(cleanPassPlayCardCount, passPlayCategories);
+    const { error: promptError } = await supabase.from("prompts").insert(
+      promptDeck.map((card) => ({
+        game_id: gameId,
+        player_id: host.id,
+        text: card.title,
+        description: card.description,
+        category: card.category
+      }))
+    );
+    if (promptError) throw promptError;
   } else {
     const { error: hostError } = await supabase.from("players").update({ team_id: firstTeam.id }).eq("game_id", gameId).eq("is_host", true);
     if (hostError) throw hostError;
@@ -380,8 +408,8 @@ export async function startGame(snapshot: GameSnapshot) {
     );
   }
 
-  if (snapshot.game.play_mode === "pass_and_play" && snapshot.prompts.length < snapshot.players.length * snapshot.game.prompts_per_player) {
-    throw new Error("Add enough prompts for the pass-and-play group before starting.");
+  if (snapshot.game.play_mode === "pass_and_play" && snapshot.prompts.length < snapshot.game.pass_play_card_count) {
+    throw new Error("Add enough pass-and-play cards before starting.");
   }
 
   const promptPool = snapshot.game.prompt_mode === "deck" ? await ensureDeckDraftPrompts(snapshot) : snapshot.prompts;

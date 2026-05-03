@@ -17,6 +17,7 @@ export type Game = {
   prompts_per_player: number;
   cards_dealt_per_player: number;
   cards_kept_per_player: number;
+  pass_play_card_count: number;
   expected_players: number | null;
   team_assignment_mode: TeamAssignmentMode;
   prompt_mode: PromptMode;

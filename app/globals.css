@@ -150,6 +150,18 @@ a {
   font-size: 1.25rem;
 }
 
+.setup-panel {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fffdf8;
+  padding: 12px;
+}
+
+.setup-panel h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
 .input,
 .textarea {
   width: 100%;
@@ -379,6 +391,11 @@ a {
   gap: 10px;
 }
 
+.category-toggle-grid {
+  display: grid;
+  gap: 8px;
+}
+
 .team-choice {
   display: flex;
   min-height: 62px;
@@ -480,6 +497,18 @@ a {
   padding: 5px 7px;
   font-size: 0.82rem;
   font-weight: 800;
+}
+
+.team-select.wide {
+  max-width: none;
+  width: 100%;
+}
+
+.player-setup-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(120px, 0.8fr);
+  gap: 10px;
+  align-items: end;
 }
 
 .round-banner {

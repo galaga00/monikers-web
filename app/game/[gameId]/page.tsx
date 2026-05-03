@@ -24,6 +24,11 @@ import {
   updatePlayerName
 } from "@/lib/game-api";
 import { supabase } from "@/lib/supabase";
+import {
+  getDefaultPassPlayCardCount,
+  MIXED_PASS_PLAY_CATEGORY,
+  PASS_PLAY_CATEGORY_OPTIONS
+} from "@/lib/pass-play-deck";
 import type { GameSnapshot, Player, Prompt } from "@/lib/types";
 import {
   DEFAULT_PROMPTS_PER_PLAYER,
@@ -52,6 +57,11 @@ import {
 import { getPromptCategoriesForPlayer } from "@/lib/prompt-categories";
 import type { PlayMode, PromptMode, TeamAssignmentMode } from "@/lib/types";
 
+type PassAndPlaySetupPlayer = {
+  name: string;
+  teamIndex: number;
+};
+
 export default function GamePage() {
   const params = useParams<{ gameId: string }>();
   const gameId = params.gameId;
@@ -70,7 +80,11 @@ export default function GamePage() {
   const [teamAssignmentMode, setTeamAssignmentMode] = useState<TeamAssignmentMode>(DEFAULT_TEAM_ASSIGNMENT_MODE);
   const [promptMode, setPromptMode] = useState<PromptMode>("free");
   const [playMode, setPlayMode] = useState<PlayMode>(DEFAULT_PLAY_MODE);
-  const [passAndPlayNames, setPassAndPlayNames] = useState("Player 1\nPlayer 2\nPlayer 3\nPlayer 4");
+  const [passAndPlayCardCount, setPassAndPlayCardCount] = useState(getDefaultPassPlayCardCount(4));
+  const [passAndPlayCategories, setPassAndPlayCategories] = useState<string[]>([MIXED_PASS_PLAY_CATEGORY]);
+  const [passAndPlayPlayers, setPassAndPlayPlayers] = useState<PassAndPlaySetupPlayer[]>(
+    Array.from({ length: 4 }, (_, index) => ({ name: `Player ${index + 1}`, teamIndex: index % DEFAULT_TEAM_COUNT }))
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -205,10 +219,9 @@ export default function GamePage() {
         cardsKeptPerPlayer,
         turnDurationSeconds,
         playMode,
-        passAndPlayNames
-          .split("\n")
-          .map((name) => name.trim())
-          .filter(Boolean)
+        passAndPlayPlayers,
+        passAndPlayCardCount,
+        passAndPlayCategories
       )
     );
   }
@@ -227,11 +240,22 @@ export default function GamePage() {
     await runAction(() => assignPlayerToTeam(playerId, teamId));
   }
 
+  function handlePassAndPlayPlayerCountChange(nextCount: number) {
+    const safeCount = Math.min(40, Math.max(2, nextCount));
+    setPassAndPlayPlayers((currentPlayers) =>
+      Array.from({ length: safeCount }, (_, index) => currentPlayers[index] ?? { name: `Player ${index + 1}`, teamIndex: index % teamCount })
+    );
+    setPassAndPlayCardCount(getDefaultPassPlayCardCount(safeCount));
+  }
+
   function handleTeamCountChange(nextCount: number) {
     const safeCount = Math.min(12, Math.max(1, nextCount));
     setTeamCount(safeCount);
     setTeamNames((currentNames) =>
       Array.from({ length: safeCount }, (_, index) => currentNames[index] ?? `Team ${index + 1}`)
+    );
+    setPassAndPlayPlayers((currentPlayers) =>
+      currentPlayers.map((player, index) => ({ ...player, teamIndex: Math.min(player.teamIndex ?? index % safeCount, safeCount - 1) }))
     );
   }
 
@@ -326,8 +350,13 @@ export default function GamePage() {
           setPromptMode={setPromptMode}
           playMode={playMode}
           setPlayMode={setPlayMode}
-          passAndPlayNames={passAndPlayNames}
-          setPassAndPlayNames={setPassAndPlayNames}
+          passAndPlayCardCount={passAndPlayCardCount}
+          setPassAndPlayCardCount={setPassAndPlayCardCount}
+          passAndPlayCategories={passAndPlayCategories}
+          setPassAndPlayCategories={setPassAndPlayCategories}
+          passAndPlayPlayers={passAndPlayPlayers}
+          setPassAndPlayPlayers={setPassAndPlayPlayers}
+          setPassAndPlayPlayerCount={handlePassAndPlayPlayerCountChange}
           onSave={handleSetupSave}
         />
       ) : snapshot.game.phase === "lobby" ? (
@@ -403,8 +432,13 @@ function Setup({
   setPromptMode,
   playMode,
   setPlayMode,
-  passAndPlayNames,
-  setPassAndPlayNames,
+  passAndPlayCardCount,
+  setPassAndPlayCardCount,
+  passAndPlayCategories,
+  setPassAndPlayCategories,
+  passAndPlayPlayers,
+  setPassAndPlayPlayers,
+  setPassAndPlayPlayerCount,
   onSave
 }: {
   busy: boolean;
@@ -429,8 +463,13 @@ function Setup({
   setPromptMode: (mode: PromptMode) => void;
   playMode: PlayMode;
   setPlayMode: (mode: PlayMode) => void;
-  passAndPlayNames: string;
-  setPassAndPlayNames: (names: string) => void;
+  passAndPlayCardCount: number;
+  setPassAndPlayCardCount: (count: number) => void;
+  passAndPlayCategories: string[];
+  setPassAndPlayCategories: (categories: string[]) => void;
+  passAndPlayPlayers: PassAndPlaySetupPlayer[];
+  setPassAndPlayPlayers: (players: PassAndPlaySetupPlayer[]) => void;
+  setPassAndPlayPlayerCount: (count: number) => void;
   onSave: (event: FormEvent<HTMLFormElement>) => void;
 }) {
   if (!isHost) {
@@ -468,16 +507,18 @@ function Setup({
         </div>
       </div>
       {playMode === "pass_and_play" ? (
-        <div className="field">
-          <label htmlFor="passPlayers">Players</label>
-          <textarea
-            className="textarea short"
-            id="passPlayers"
-            value={passAndPlayNames}
-            onChange={(event) => setPassAndPlayNames(event.target.value)}
-            placeholder={"Austin\nMaya\nSam\nJordan"}
-          />
-        </div>
+        <PassAndPlaySetup
+          cardCount={passAndPlayCardCount}
+          categories={passAndPlayCategories}
+          playerCount={passAndPlayPlayers.length}
+          players={passAndPlayPlayers}
+          setCardCount={setPassAndPlayCardCount}
+          setCategories={setPassAndPlayCategories}
+          setPlayerCount={setPassAndPlayPlayerCount}
+          setPlayers={setPassAndPlayPlayers}
+          teamCount={teamCount}
+          teamNames={teamNames}
+        />
       ) : null}
       <div className="split">
         {playMode === "multi_device" ? (
@@ -508,40 +549,40 @@ function Setup({
           />
         </div>
       </div>
-      <div className="split">
-        <div className="field">
-          <label htmlFor="promptCount">Prompts per player</label>
-          <MobileNumberInput
-            disabled={promptMode === "deck"}
-            id="promptCount"
-            min={1}
-            max={20}
-            value={promptsPerPlayer}
-            onValueChange={setPromptsPerPlayer}
-          />
-        </div>
-        <div className="field">
-          <label>Team assignment</label>
-          <div className="segmented">
-            <button
-              className={teamAssignmentMode === "auto" ? "segment active" : "segment"}
-              type="button"
-              disabled={playMode === "pass_and_play"}
-              onClick={() => setTeamAssignmentMode("auto")}
-            >
-              Auto
-            </button>
-            <button
-              className={teamAssignmentMode === "choose" ? "segment active" : "segment"}
-              type="button"
-              disabled={playMode === "pass_and_play"}
-              onClick={() => setTeamAssignmentMode("choose")}
-            >
-              Players choose
-            </button>
+      {playMode === "multi_device" ? (
+        <div className="split">
+          <div className="field">
+            <label htmlFor="promptCount">Prompts per player</label>
+            <MobileNumberInput
+              disabled={promptMode === "deck"}
+              id="promptCount"
+              min={1}
+              max={20}
+              value={promptsPerPlayer}
+              onValueChange={setPromptsPerPlayer}
+            />
+          </div>
+          <div className="field">
+            <label>Team assignment</label>
+            <div className="segmented">
+              <button
+                className={teamAssignmentMode === "auto" ? "segment active" : "segment"}
+                type="button"
+                onClick={() => setTeamAssignmentMode("auto")}
+              >
+                Auto
+              </button>
+              <button
+                className={teamAssignmentMode === "choose" ? "segment active" : "segment"}
+                type="button"
+                onClick={() => setTeamAssignmentMode("choose")}
+              >
+                Players choose
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      ) : null}
       <div className="field">
         <label>Turn timer</label>
         <div className="segmented">
@@ -557,27 +598,27 @@ function Setup({
           ))}
         </div>
       </div>
-      <div className="field">
-        <label>Prompt mode</label>
-        <div className="segmented">
-          <button className={promptMode === "free" ? "segment active" : "segment"} type="button" onClick={() => setPromptMode("free")}>
-            Anything goes
-          </button>
-          <button className={promptMode === "category" ? "segment active" : "segment"} type="button" onClick={() => setPromptMode("category")}>
-            Category mix
-          </button>
-          <button
-            className={promptMode === "deck" ? "segment active" : "segment"}
-            disabled={playMode === "pass_and_play"}
-            type="button"
-            onClick={() => setPromptMode("deck")}
-          >
-            Deck draft
-          </button>
+      {playMode === "multi_device" ? (
+        <div className="field">
+          <label>Prompt mode</label>
+          <div className="segmented">
+            <button className={promptMode === "free" ? "segment active" : "segment"} type="button" onClick={() => setPromptMode("free")}>
+              Anything goes
+            </button>
+            <button className={promptMode === "category" ? "segment active" : "segment"} type="button" onClick={() => setPromptMode("category")}>
+              Category mix
+            </button>
+            <button
+              className={promptMode === "deck" ? "segment active" : "segment"}
+              type="button"
+              onClick={() => setPromptMode("deck")}
+            >
+              Deck draft
+            </button>
+          </div>
         </div>
-        {playMode === "pass_and_play" ? <p className="muted tiny">Deck Draft is available when everyone joins on their own phone.</p> : null}
-      </div>
-      {promptMode === "deck" ? (
+      ) : null}
+      {playMode === "multi_device" && promptMode === "deck" ? (
         <div className="split">
           <div className="field">
             <label htmlFor="cardsDealt">Cards dealt</label>
@@ -623,6 +664,147 @@ function Setup({
         Create lobby
       </button>
     </form>
+  );
+}
+
+function PassAndPlaySetup({
+  cardCount,
+  categories,
+  playerCount,
+  players,
+  setCardCount,
+  setCategories,
+  setPlayerCount,
+  setPlayers,
+  teamCount,
+  teamNames
+}: {
+  cardCount: number;
+  categories: string[];
+  playerCount: number;
+  players: PassAndPlaySetupPlayer[];
+  setCardCount: (count: number) => void;
+  setCategories: (categories: string[]) => void;
+  setPlayerCount: (count: number) => void;
+  setPlayers: (players: PassAndPlaySetupPlayer[]) => void;
+  teamCount: number;
+  teamNames: string[];
+}) {
+  const groupedPlayers = teamNames.slice(0, teamCount).map((teamName, teamIndex) => ({
+    teamName,
+    players: players.filter((player) => player.teamIndex === teamIndex)
+  }));
+
+  function toggleCategory(categoryId: string) {
+    if (categoryId === MIXED_PASS_PLAY_CATEGORY) {
+      setCategories([MIXED_PASS_PLAY_CATEGORY]);
+      return;
+    }
+
+    const withoutMixed = categories.filter((category) => category !== MIXED_PASS_PLAY_CATEGORY);
+    const nextCategories = withoutMixed.includes(categoryId)
+      ? withoutMixed.filter((category) => category !== categoryId)
+      : [...withoutMixed, categoryId];
+    setCategories(nextCategories.length > 0 ? nextCategories : [MIXED_PASS_PLAY_CATEGORY]);
+  }
+
+  return (
+    <section className="setup-panel stack">
+      <div className="split">
+        <div className="field">
+          <label htmlFor="passPlayerCount">Players</label>
+          <MobileNumberInput id="passPlayerCount" min={2} max={40} value={playerCount} onValueChange={setPlayerCount} />
+        </div>
+        <div className="field">
+          <label htmlFor="passCardCount">Cards in game</label>
+          <MobileNumberInput id="passCardCount" min={10} max={80} value={cardCount} onValueChange={setCardCount} />
+          <p className="muted tiny">Default adjusts by player count to stay near a 40-50 card game.</p>
+        </div>
+      </div>
+
+      <div className="field">
+        <label>Categories</label>
+        <div className="category-toggle-grid">
+          <button
+            className={categories.includes(MIXED_PASS_PLAY_CATEGORY) ? "team-choice selected" : "team-choice"}
+            type="button"
+            onClick={() => toggleCategory(MIXED_PASS_PLAY_CATEGORY)}
+          >
+            <strong>Mixed</strong>
+            <span>Balanced pull</span>
+          </button>
+          {PASS_PLAY_CATEGORY_OPTIONS.map((category) => (
+            <button
+              className={categories.includes(category.id) ? "team-choice selected" : "team-choice"}
+              key={category.id}
+              type="button"
+              onClick={() => toggleCategory(category.id)}
+            >
+              <strong>{category.label}</strong>
+              <span>{categories.includes(category.id) ? "Included" : "Tap to include"}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="stack">
+        <h3>Players</h3>
+        {players.map((player, index) => (
+          <div className="player-setup-row" key={index}>
+            <div className="field">
+              <label htmlFor={`pass-player-${index}`}>Player {index + 1}</label>
+              <input
+                className="input"
+                id={`pass-player-${index}`}
+                value={player.name}
+                onChange={(event) => {
+                  const nextPlayers = [...players];
+                  nextPlayers[index] = { ...player, name: event.target.value };
+                  setPlayers(nextPlayers);
+                }}
+              />
+            </div>
+            <div className="field">
+              <label htmlFor={`pass-team-${index}`}>Team</label>
+              <select
+                className="team-select wide"
+                id={`pass-team-${index}`}
+                value={player.teamIndex}
+                onChange={(event) => {
+                  const nextPlayers = [...players];
+                  nextPlayers[index] = { ...player, teamIndex: Number(event.target.value) };
+                  setPlayers(nextPlayers);
+                }}
+              >
+                {teamNames.slice(0, teamCount).map((teamName, teamIndex) => (
+                  <option key={teamIndex} value={teamIndex}>
+                    {teamName || `Team ${teamIndex + 1}`}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="team-rosters">
+        {groupedPlayers.map((team, teamIndex) => (
+          <section className="team-roster" key={teamIndex}>
+            <div className="team-roster-heading">
+              <strong>{team.teamName}</strong>
+              <span>{team.players.length}</span>
+            </div>
+            <ul className="list">
+              {team.players.map((player, index) => (
+                <li className="list-item compact" key={`${team.teamName}-${index}`}>
+                  {player.name || "Unnamed player"}
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -794,7 +976,7 @@ function Lobby({
   const needsTeam = canSelfSwitchTeams && !me.team_id;
   const allPlayersHaveTeams = snapshot.players.every((player) => Boolean(player.team_id));
   const canStart = promptProgress.isComplete && allPlayersHaveTeams;
-  const progressLabel = isDeckDraft ? "Draft progress" : "Prompt progress";
+  const progressLabel = passAndPlay ? "Card deck" : isDeckDraft ? "Draft progress" : "Prompt progress";
   const teamBalanceWarning = getTeamBalanceWarning(snapshot);
 
   return (
@@ -829,24 +1011,33 @@ function Lobby({
         </section>
       ) : null}
 
-      <form className="card stack" onSubmit={onNameSave}>
-        <h2>Your name</h2>
-        <div className="field">
-          <label htmlFor="rename">Name</label>
-          <input
-            className="input"
-            id="rename"
-            value={joinName}
-            placeholder={me.name}
-            onChange={(event) => setJoinName(event.target.value)}
-          />
-        </div>
-        <button className="button secondary" disabled={busy || !joinName.trim()}>
-          Save name
-        </button>
-      </form>
+      {!passAndPlay ? (
+        <form className="card stack" onSubmit={onNameSave}>
+          <h2>Your name</h2>
+          <div className="field">
+            <label htmlFor="rename">Name</label>
+            <input
+              className="input"
+              id="rename"
+              value={joinName}
+              placeholder={me.name}
+              onChange={(event) => setJoinName(event.target.value)}
+            />
+          </div>
+          <button className="button secondary" disabled={busy || !joinName.trim()}>
+            Save name
+          </button>
+        </form>
+      ) : null}
 
-      {isDeckDraft ? (
+      {passAndPlay ? (
+        <section className="card stack">
+          <h2>Card deck ready</h2>
+          <p className="muted">
+            {snapshot.prompts.length} cards are loaded for this one-phone game. Start when teams look right.
+          </p>
+        </section>
+      ) : isDeckDraft ? (
         <section className="card stack">
           <h2>Pick your cards</h2>
           <p className="muted">

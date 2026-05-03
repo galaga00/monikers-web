@@ -63,6 +63,15 @@ export function hasPlayerDrafted(playerId: string, snapshot: GameSnapshot) {
 }
 
 export function getPromptProgress(snapshot: GameSnapshot) {
+  if (snapshot.game.play_mode === "pass_and_play") {
+    return {
+      submittedTotal: snapshot.prompts.length,
+      requiredTotal: snapshot.game.pass_play_card_count,
+      expectedTotal: snapshot.game.pass_play_card_count,
+      isComplete: snapshot.prompts.length >= snapshot.game.pass_play_card_count
+    };
+  }
+
   const perPlayer = snapshot.game.prompt_mode === "deck" ? snapshot.game.cards_kept_per_player : snapshot.game.prompts_per_player;
   const submittedTotal =
     snapshot.game.prompt_mode === "deck"

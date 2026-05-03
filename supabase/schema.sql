@@ -14,6 +14,7 @@ create table if not exists public.games (
   prompts_per_player integer not null default 3,
   cards_dealt_per_player integer not null default 10,
   cards_kept_per_player integer not null default 5,
+  pass_play_card_count integer not null default 45,
   expected_players integer,
   team_assignment_mode text not null default 'auto' check (team_assignment_mode in ('auto', 'choose')),
   prompt_mode text not null default 'free' check (prompt_mode in ('free', 'category', 'deck')),
@@ -113,6 +114,7 @@ alter table public.games add column if not exists prompts_per_player integer not
 alter table public.games add column if not exists turn_duration_seconds integer not null default 60;
 alter table public.games add column if not exists cards_dealt_per_player integer not null default 10;
 alter table public.games add column if not exists cards_kept_per_player integer not null default 5;
+alter table public.games add column if not exists pass_play_card_count integer not null default 45;
 alter table public.games add column if not exists expected_players integer;
 alter table public.games add column if not exists team_assignment_mode text not null default 'auto';
 alter table public.games add column if not exists prompt_mode text not null default 'free';
@@ -144,6 +146,10 @@ begin
     alter table public.games drop constraint games_cards_kept_per_player_check;
   end if;
   alter table public.games add constraint games_cards_kept_per_player_check check (cards_kept_per_player between 1 and cards_dealt_per_player);
+  if exists (select 1 from pg_constraint where conname = 'games_pass_play_card_count_check') then
+    alter table public.games drop constraint games_pass_play_card_count_check;
+  end if;
+  alter table public.games add constraint games_pass_play_card_count_check check (pass_play_card_count between 10 and 80);
   if exists (select 1 from pg_constraint where conname = 'games_expected_players_check') then
     alter table public.games drop constraint games_expected_players_check;
   end if;
