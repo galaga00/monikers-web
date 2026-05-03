@@ -631,10 +631,16 @@ function Setup({
           </div>
         </div>
       ) : null}
-      {playMode === "multi_device" && promptMode === "category" ? (
+      {playMode === "multi_device" && promptMode !== "deck" ? (
         <CategorySelector
           categories={promptCategories}
-          helpText="Players will be asked for prompt ideas from these categories. Mixed spreads the prompts across the full set."
+          helpText={
+            promptMode === "category"
+              ? "Players will be asked for prompt ideas from these categories. Mixed spreads the prompts across the full set."
+              : "Tap a category below to use category prompts for Everyone Joins."
+          }
+          inactive={promptMode !== "category"}
+          onActivate={() => setPromptMode("category")}
           setCategories={setPromptCategories}
         />
       ) : null}
@@ -802,13 +808,19 @@ function PassAndPlaySetup({
 function CategorySelector({
   categories,
   helpText,
+  inactive = false,
+  onActivate,
   setCategories
 }: {
   categories: string[];
   helpText?: string;
+  inactive?: boolean;
+  onActivate?: () => void;
   setCategories: (categories: string[]) => void;
 }) {
   function toggleCategory(categoryId: string) {
+    onActivate?.();
+
     if (categoryId === MIXED_PASS_PLAY_CATEGORY) {
       setCategories([MIXED_PASS_PLAY_CATEGORY]);
       return;
@@ -827,22 +839,22 @@ function CategorySelector({
       {helpText ? <p className="muted tiny">{helpText}</p> : null}
       <div className="category-toggle-grid">
         <button
-          className={categories.includes(MIXED_PASS_PLAY_CATEGORY) ? "team-choice selected" : "team-choice"}
+          className={!inactive && categories.includes(MIXED_PASS_PLAY_CATEGORY) ? "team-choice selected" : "team-choice"}
           type="button"
           onClick={() => toggleCategory(MIXED_PASS_PLAY_CATEGORY)}
         >
           <strong>Mixed</strong>
-          <span>Balanced pull</span>
+          <span>{inactive ? "Tap to use" : "Balanced pull"}</span>
         </button>
         {PASS_PLAY_CATEGORY_OPTIONS.map((category) => (
           <button
-            className={categories.includes(category.id) ? "team-choice selected" : "team-choice"}
+            className={!inactive && categories.includes(category.id) ? "team-choice selected" : "team-choice"}
             key={category.id}
             type="button"
             onClick={() => toggleCategory(category.id)}
           >
             <strong>{category.label}</strong>
-            <span>{categories.includes(category.id) ? "Included" : "Tap to include"}</span>
+            <span>{inactive ? "Tap to use" : categories.includes(category.id) ? "Included" : "Tap to include"}</span>
           </button>
         ))}
       </div>
