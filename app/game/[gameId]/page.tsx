@@ -749,7 +749,7 @@ function PassAndPlaySetup({
             Built-in deck
           </button>
           <button className={promptMode === "free" ? "segment active" : "segment"} type="button" onClick={() => setPromptMode("free")}>
-            Kids write
+            Write prompts
           </button>
           <button className={promptMode === "category" ? "segment active" : "segment"} type="button" onClick={() => setPromptMode("category")}>
             Category prompts
