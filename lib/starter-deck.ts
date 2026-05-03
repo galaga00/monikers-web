@@ -101,6 +101,51 @@ const CORE_DECK: StarterDeckCard[] = [
   { id: "zombie-apocalypse", title: "Zombie Apocalypse", description: "A survival scenario with slow monsters, barricades, supplies, and questionable group decisions." }
 ];
 
+const SPORTS_CARD_IDS = new Set([
+  "tmdb-movie-cars",
+  "tmdb-movie-f1",
+  "tmdb-movie-the-art-of-racing-in-the-rain",
+  "tmdb-movie-point-break"
+]);
+
+const SPORTS_CARD_PATTERNS = [
+  /\bbasketball\b/,
+  /\bbaseball\b/,
+  /\bfootball\b/,
+  /\bsoccer\b/,
+  /\btennis\b/,
+  /\bolympic\b/,
+  /\bnba\b/,
+  /\bnfl\b/,
+  /\bmlb\b/,
+  /\bwnba\b/,
+  /\bquarterback\b/,
+  /\bworld cup\b/,
+  /\blakers\b/,
+  /\bdodgers\b/,
+  /\byankees\b/,
+  /\bchiefs\b/,
+  /\bgrand slam\b/,
+  /\bsprinter\b/,
+  /\bswimmer\b/,
+  /\bskateboard/,
+  /\bwrestl/,
+  /\bathlete\b/,
+  /\bsports analyst\b/,
+  /\bracing\b/,
+  /\brace car\b/,
+  /\bformula one\b/,
+  /\bf1\b/,
+  /\bnascar\b/,
+  /\bgolf\b/,
+  /\bhockey\b/,
+  /\bboxing\b/,
+  /\bmma\b/,
+  /\bsurfing\b/,
+  /\bmotorsport\b/,
+  /\bgrand prix\b/
+];
+
 export const STARTER_DECK: StarterDeckCard[] = [
   ...CORE_DECK,
   ...TMDB_DECK,
@@ -110,31 +155,8 @@ export const STARTER_DECK: StarterDeckCard[] = [
 
 function isSportsCard(card: StarterDeckCard) {
   if (card.category === "sports") return true;
+  if (SPORTS_CARD_IDS.has(card.id)) return true;
 
   const text = `${card.id} ${card.title} ${card.description}`.toLowerCase();
-  return [
-    "basketball",
-    "baseball",
-    "football",
-    "soccer",
-    "tennis",
-    "olympic",
-    "nba",
-    "nfl",
-    "mlb",
-    "wnba",
-    "quarterback",
-    "world cup",
-    "lakers",
-    "dodgers",
-    "yankees",
-    "chiefs",
-    "grand slam",
-    "sprinter",
-    "swimmer",
-    "skateboarder",
-    "wrestler",
-    "athlete",
-    "sports analyst"
-  ].some((needle) => text.includes(needle));
+  return SPORTS_CARD_PATTERNS.some((pattern) => pattern.test(text));
 }
