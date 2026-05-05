@@ -7,7 +7,7 @@ Start new task threads with:
 ## Project Map
 
 - Project name: Fish Bowl
-- Local repo path: `/Users/austinhill/Documents/Codex/2026-04-27/fish-bowl`
+- Local repo path: `/Volumes/2TB_RED/_MY_PROJECTS_/codex/fish-bowl`
 - GitHub repo: `https://github.com/galaga00/fishbowl-web`
 - Live app: `https://fish-bowl-game.vercel.app`
 - Hosting: Vercel project `fish-bowl`
