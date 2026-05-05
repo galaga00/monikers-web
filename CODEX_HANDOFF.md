@@ -9,6 +9,7 @@ Start new task threads with:
 - Project name: Fish Bowl
 - Local repo path: `/Volumes/2TB_RED/_MY_PROJECTS_/codex/fish-bowl`
 - GitHub repo: `https://github.com/galaga00/fishbowl-web`
+- Notion project page: `https://www.notion.so/3541b2ce282781669d76f43df062d2de`
 - Live app: `https://fish-bowl-game.vercel.app`
 - Hosting: Vercel project `fish-bowl`
 - Supabase project: `monikers-web`
