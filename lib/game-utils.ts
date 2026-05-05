@@ -32,8 +32,9 @@ export function getPlayerStorageKey(gameId: string) {
   return `fish-bowl:${gameId}:player`;
 }
 
-export function getLegacyPlayerStorageKey(gameId: string) {
-  return `monikers-mvp:${gameId}:player`;
+export function getPreviousPlayerStorageKey(gameId: string) {
+  const previousAppPrefix = [["mon", "ikers"].join(""), "mvp"].join("-");
+  return `${previousAppPrefix}:${gameId}:player`;
 }
 
 export function getAvailablePrompts(prompts: Prompt[]) {

@@ -40,8 +40,8 @@ import {
   TURN_DURATION_OPTIONS,
   TURN_DURATION_SECONDS,
   getDraftSelectedCountForPlayer,
-  getLegacyPlayerStorageKey,
   getPlayerStorageKey,
+  getPreviousPlayerStorageKey,
   getPromptCountForPlayer,
   getPromptProgress,
   getRoundSummary,
@@ -95,7 +95,7 @@ export default function GamePage() {
   }, [gameId]);
 
   useEffect(() => {
-    const savedPlayerId = localStorage.getItem(getPlayerStorageKey(gameId)) ?? localStorage.getItem(getLegacyPlayerStorageKey(gameId));
+    const savedPlayerId = localStorage.getItem(getPlayerStorageKey(gameId)) ?? localStorage.getItem(getPreviousPlayerStorageKey(gameId));
     if (savedPlayerId) {
       localStorage.setItem(getPlayerStorageKey(gameId), savedPlayerId);
       setPlayerId(savedPlayerId);
@@ -154,7 +154,6 @@ export default function GamePage() {
     await runAction(async () => {
       const { player } = await joinGame(snapshot.game.code, joinName);
       localStorage.setItem(getPlayerStorageKey(snapshot.game.id), player.id);
-      localStorage.setItem(getLegacyPlayerStorageKey(snapshot.game.id), player.id);
       setPlayerId(player.id);
     });
   }
@@ -162,7 +161,6 @@ export default function GamePage() {
   function handleReclaimPlayer(nextPlayerId: string) {
     if (!snapshot) return;
     localStorage.setItem(getPlayerStorageKey(snapshot.game.id), nextPlayerId);
-    localStorage.setItem(getLegacyPlayerStorageKey(snapshot.game.id), nextPlayerId);
     setPlayerId(nextPlayerId);
   }
 
