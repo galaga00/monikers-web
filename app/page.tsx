@@ -3,6 +3,7 @@
 import { FormEvent, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { ASSETS } from "@/lib/assets";
 import { createGame, joinGame } from "@/lib/game-api";
 import { getPlayerStorageKey, normalizeCode } from "@/lib/game-utils";
 
@@ -48,7 +49,7 @@ export default function Home() {
       <section className={mode === "join" ? "home-art-stage joining" : "home-art-stage"} aria-labelledby="home-title">
         <Image
           className="home-art"
-          src="/art/fish-bowl-home-placeholder.svg"
+          src={ASSETS.art.home.fishBowl}
           alt="A placeholder drawing of a fish swimming inside a fish bowl."
           fill
           priority

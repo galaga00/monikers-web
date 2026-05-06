@@ -4,10 +4,11 @@ Use this for the first-screen game illustration.
 
 ## File To Replace
 
-- Current placeholder: `public/art/fish-bowl-home-placeholder.svg`
-- The homepage references: `/art/fish-bowl-home-placeholder.svg`
+- Current placeholder: `public/assets/art/home/home-fish-bowl-placeholder.svg`
+- The app references this through `lib/assets.ts`.
+- Current public path: `/assets/art/home/home-fish-bowl-placeholder.svg`
 
-You can replace that file with final art at the same path, or update `app/page.tsx` to point at a new filename.
+You can replace that file with final art at the same path, or add a new versioned file and update `ASSETS.art.home.fishBowl` in `lib/assets.ts`.
 
 ## Canvas
 
