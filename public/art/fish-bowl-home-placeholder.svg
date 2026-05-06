@@ -1,0 +1,25 @@
+<svg width="1080" height="1920" viewBox="0 0 1080 1920" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Fish Bowl home placeholder art</title>
+  <desc id="desc">A simple placeholder illustration showing a fish in a fish bowl with safe areas for a title and buttons.</desc>
+  <rect width="1080" height="1920" fill="#DFF7F2"/>
+  <rect y="0" width="1080" height="360" fill="#C6EEE7"/>
+  <rect y="1450" width="1080" height="470" fill="#BDE7DF"/>
+  <circle cx="180" cy="280" r="56" fill="#FFFFFF" fill-opacity="0.44"/>
+  <circle cx="914" cy="454" r="38" fill="#FFFFFF" fill-opacity="0.4"/>
+  <circle cx="812" cy="254" r="22" fill="#FFFFFF" fill-opacity="0.48"/>
+  <circle cx="248" cy="580" r="28" fill="#FFFFFF" fill-opacity="0.36"/>
+  <path d="M165 1610C220 1515 305 1472 420 1518C510 1554 600 1554 692 1518C812 1471 902 1519 959 1610V1920H165V1610Z" fill="#7B5538" fill-opacity="0.16"/>
+  <ellipse cx="540" cy="962" rx="342" ry="448" fill="#F7FFFF" fill-opacity="0.62"/>
+  <path d="M198 958C198 712 351 514 540 514C729 514 882 712 882 958C882 1204 729 1402 540 1402C351 1402 198 1204 198 958Z" stroke="#2C8A8A" stroke-width="24"/>
+  <path d="M263 1190C344 1274 442 1317 557 1317C663 1317 755 1280 833 1206" stroke="#2C8A8A" stroke-width="20" stroke-linecap="round"/>
+  <path d="M320 820C410 765 506 750 610 775C692 795 759 841 812 914" stroke="#FFFFFF" stroke-width="26" stroke-linecap="round" opacity="0.72"/>
+  <path d="M348 1052C445 970 562 954 698 1004C650 1103 566 1166 456 1192C410 1148 374 1102 348 1052Z" fill="#F77F5A"/>
+  <path d="M690 1008C756 966 812 960 858 988C830 1038 778 1062 703 1060L690 1008Z" fill="#EC6A4A"/>
+  <circle cx="445" cy="1045" r="18" fill="#1A2527"/>
+  <path d="M515 1077C560 1106 611 1113 668 1098" stroke="#8F3F2D" stroke-width="14" stroke-linecap="round"/>
+  <path d="M510 976C486 932 446 896 392 868C457 860 508 878 546 922L510 976Z" fill="#FFB55F"/>
+  <path d="M118 0H962V320H118V0Z" fill="#DFF7F2" fill-opacity="0.58"/>
+  <path d="M108 1468H972V1842H108V1468Z" fill="#DFF7F2" fill-opacity="0.62"/>
+  <rect x="146" y="1502" width="788" height="322" rx="56" stroke="#2C8A8A" stroke-width="8" stroke-dasharray="28 24" opacity="0.42"/>
+  <rect x="146" y="72" width="788" height="236" rx="52" stroke="#2C8A8A" stroke-width="8" stroke-dasharray="28 24" opacity="0.34"/>
+</svg>
