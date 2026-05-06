@@ -47,16 +47,19 @@ export default function Home() {
   return (
     <main className="home-shell">
       <section className={mode === "join" ? "home-art-stage joining" : "home-art-stage"} aria-labelledby="home-title">
-        <Image
-          className="home-art"
-          src={ASSETS.art.home.fishBowl}
-          alt="A placeholder drawing of a fish swimming inside a fish bowl."
-          fill
-          priority
-          sizes="(max-width: 520px) 100vw, 520px"
-        />
         <div className="home-title-lockup">
           <h1 id="home-title">Fish Bowl</h1>
+        </div>
+
+        <div className="home-illustration-frame">
+          <Image
+            className="home-art"
+            src={ASSETS.art.home.fishBowl}
+            alt="A placeholder drawing of a fish swimming inside a fish bowl."
+            fill
+            priority
+            sizes="(max-width: 520px) calc(100vw - 44px), 476px"
+          />
         </div>
 
         <div className="home-action-panel">

@@ -1,5 +1,13 @@
 import type { Metadata, Viewport } from "next";
+import { Titan_One } from "next/font/google";
 import "./globals.css";
+
+const titanOne = Titan_One({
+  subsets: ["latin"],
+  weight: "400",
+  variable: "--font-title",
+  display: "swap"
+});
 
 export const metadata: Metadata = {
   title: "Fish Bowl",
@@ -16,7 +24,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body className={titanOne.variable}>{children}</body>
     </html>
   );
 }
