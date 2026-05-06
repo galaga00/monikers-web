@@ -4,8 +4,12 @@
   --muted: #69645b;
   --line: #ded6c7;
   --panel: #fffdf8;
+  --aqua: #dff7f2;
+  --aqua-strong: #bfeee7;
   --accent: #0f766e;
   --accent-strong: #0b5e58;
+  --fish: #e87c2f;
+  --fish-soft: #fff1df;
   --danger: #b42318;
   --warn: #a15c07;
   --blue: #2563eb;
@@ -242,7 +246,7 @@ a {
 .card,
 .status-panel {
   background: rgba(255, 253, 248, 0.92);
-  border: 1px solid var(--line);
+  border: 1px solid rgba(15, 118, 110, 0.18);
   border-radius: 8px;
   box-shadow: var(--shadow);
   padding: 16px;
@@ -251,6 +255,7 @@ a {
 .card h2,
 .status-panel h2 {
   margin: 0 0 12px;
+  color: var(--accent-strong);
   font-size: 1.2rem;
 }
 
@@ -260,7 +265,7 @@ a {
 }
 
 .field label {
-  color: var(--muted);
+  color: var(--accent-strong);
   font-size: 0.9rem;
   font-weight: 700;
 }
@@ -278,9 +283,9 @@ a {
 }
 
 .setup-panel {
-  border: 1px solid var(--line);
+  border: 1px solid rgba(15, 118, 110, 0.16);
   border-radius: 8px;
-  background: #fffdf8;
+  background: linear-gradient(180deg, rgba(223, 247, 242, 0.62), rgba(255, 253, 248, 0.92));
   padding: 12px;
 }
 
@@ -292,7 +297,7 @@ a {
 .input,
 .textarea {
   width: 100%;
-  border: 1px solid var(--line);
+  border: 1px solid rgba(15, 118, 110, 0.22);
   border-radius: 8px;
   background: white;
   color: var(--ink);
@@ -370,26 +375,48 @@ a {
 .segmented {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 6px;
-  border: 1px solid var(--line);
+  gap: 8px;
+  border: 1px solid rgba(15, 118, 110, 0.2);
   border-radius: 8px;
-  background: #ece7dc;
-  padding: 4px;
+  background: rgba(223, 247, 242, 0.72);
+  padding: 5px;
 }
 
 .segment {
-  min-height: 44px;
+  display: grid;
+  min-height: 52px;
+  align-content: center;
+  gap: 3px;
   border-radius: 6px;
   background: transparent;
-  color: var(--muted);
+  color: var(--accent-strong);
   font-weight: 900;
+  padding: 9px 8px;
   cursor: pointer;
+  text-align: center;
+}
+
+.segment strong {
+  display: block;
+  font-size: 0.98rem;
+}
+
+.segment span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 800;
+  line-height: 1.2;
 }
 
 .segment.active {
   background: white;
-  color: var(--ink);
-  box-shadow: 0 2px 8px rgba(33, 29, 22, 0.12);
+  color: var(--accent-strong);
+  box-shadow: 0 2px 10px rgba(15, 118, 110, 0.16);
+}
+
+.segment.active span {
+  color: #315b57;
 }
 
 .code {
@@ -534,7 +561,7 @@ a {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  border: 1px solid var(--line);
+  border: 1px solid rgba(15, 118, 110, 0.2);
   border-radius: 8px;
   background: white;
   color: var(--ink);
@@ -545,10 +572,12 @@ a {
 
 .team-choice.selected {
   border-color: var(--accent);
-  background: #e8f5f2;
+  background: var(--aqua);
+  box-shadow: inset 0 0 0 1px rgba(15, 118, 110, 0.16);
 }
 
 .team-choice strong {
+  color: var(--accent-strong);
   font-size: 1.1rem;
 }
 
@@ -556,6 +585,22 @@ a {
   color: var(--muted);
   font-size: 0.9rem;
   font-weight: 800;
+}
+
+.family-choice {
+  border-color: rgba(232, 124, 47, 0.34);
+  background: var(--fish-soft);
+  margin-bottom: 8px;
+}
+
+.family-choice.selected {
+  border-color: var(--fish);
+  background: #ffe6cc;
+  box-shadow: inset 0 0 0 1px rgba(232, 124, 47, 0.18);
+}
+
+.family-choice strong {
+  color: #8d3f0e;
 }
 
 .draft-grid {

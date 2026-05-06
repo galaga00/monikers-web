@@ -1,6 +1,7 @@
 import { TMDB_DECK } from "./tmdb-deck";
 import { WIKIPEDIA_DECK } from "./wikipedia-deck";
 import { CATEGORY_EXPANSION_DECK } from "./category-expansion-deck";
+import { FAMILY_DECK } from "./family-deck";
 
 export type StarterDeckCard = {
   id: string;
@@ -141,15 +142,21 @@ const SPORTS_CARD_PATTERNS = [
 
 export const STARTER_DECK: StarterDeckCard[] = [
   ...CORE_DECK,
+  ...FAMILY_DECK,
   ...TMDB_DECK,
   ...WIKIPEDIA_DECK,
   ...CATEGORY_EXPANSION_DECK
 ].filter((card) => !isSportsCard(card));
 
 const STARTER_DECK_CARD_IDS = new Set(STARTER_DECK.map((card) => card.id));
+const FAMILY_DECK_CARD_IDS = new Set(FAMILY_DECK.map((card) => card.id));
 
 export function isStarterDeckCardAllowed(cardId: string) {
   return STARTER_DECK_CARD_IDS.has(cardId);
+}
+
+export function isFamilyFriendlyCard(cardId: string) {
+  return FAMILY_DECK_CARD_IDS.has(cardId);
 }
 
 function isSportsCard(card: StarterDeckCard) {

@@ -1,4 +1,4 @@
-import { STARTER_DECK, type StarterDeckCard } from "./starter-deck";
+import { STARTER_DECK, isFamilyFriendlyCard, type StarterDeckCard } from "./starter-deck";
 import { shuffle } from "./game-utils";
 
 export type PassPlayCategoryId =
@@ -11,6 +11,7 @@ export type PassPlayCategoryId =
   | "animals_nature";
 
 export const MIXED_PASS_PLAY_CATEGORY = "mixed";
+export const FAMILY_FRIENDLY_DECK_FILTER = "family_friendly";
 
 export const PASS_PLAY_CATEGORY_OPTIONS: Array<{ id: PassPlayCategoryId; label: string }> = [
   { id: "people", label: "People & Celebrities" },
@@ -39,7 +40,7 @@ export function buildPassPlayDeck(cardCount: number, selectedCategories: string[
   const useMixed = shouldUseMixedCategories(selectedCategories);
   const categoryIds = getSelectedPassPlayCategoryIds(selectedCategories);
 
-  const categorizedCards = STARTER_DECK.map((card) => ({ ...card, category: getCardCategory(card) }));
+  const categorizedCards = getFilteredStarterDeck(selectedCategories);
   if (!useMixed) {
     return shuffle(categorizedCards.filter((card) => categoryIds.includes(card.category))).slice(0, cleanCount);
   }
@@ -61,7 +62,7 @@ export function buildPassPlayDeck(cardCount: number, selectedCategories: string[
 export function filterStarterDeckByCategories(selectedCategories: string[]) {
   const useMixed = shouldUseMixedCategories(selectedCategories);
   const categoryIds = getSelectedPassPlayCategoryIds(selectedCategories);
-  const categorizedCards = STARTER_DECK.map((card) => ({ ...card, category: getCardCategory(card) }));
+  const categorizedCards = getFilteredStarterDeck(selectedCategories);
   return useMixed ? categorizedCards : categorizedCards.filter((card) => categoryIds.includes(card.category));
 }
 
@@ -77,6 +78,23 @@ function getSelectedPassPlayCategoryIds(selectedCategories: string[]) {
       );
 
   return categoryIds.length > 0 ? categoryIds : PASS_PLAY_CATEGORY_OPTIONS.map((category) => category.id);
+}
+
+export function hasFamilyFriendlyDeckFilter(selectedCategories: string[]) {
+  return selectedCategories.includes(FAMILY_FRIENDLY_DECK_FILTER);
+}
+
+export function setFamilyFriendlyDeckFilter(selectedCategories: string[], enabled: boolean) {
+  const withoutFilter = selectedCategories.filter((category) => category !== FAMILY_FRIENDLY_DECK_FILTER);
+  return enabled ? [...withoutFilter, FAMILY_FRIENDLY_DECK_FILTER] : withoutFilter;
+}
+
+function getFilteredStarterDeck(selectedCategories: string[]) {
+  const sourceCards = hasFamilyFriendlyDeckFilter(selectedCategories)
+    ? STARTER_DECK.filter((card) => isFamilyFriendlyCard(card.id))
+    : STARTER_DECK;
+
+  return sourceCards.map((card) => ({ ...card, category: getCardCategory(card) }));
 }
 
 function getCardCategory(card: StarterDeckCard): PassPlayCategoryId {

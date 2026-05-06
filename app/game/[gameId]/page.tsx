@@ -25,9 +25,12 @@ import {
 } from "@/lib/game-api";
 import { supabase } from "@/lib/supabase";
 import {
+  FAMILY_FRIENDLY_DECK_FILTER,
   getDefaultPassPlayCardCount,
+  hasFamilyFriendlyDeckFilter,
   MIXED_PASS_PLAY_CATEGORY,
-  PASS_PLAY_CATEGORY_OPTIONS
+  PASS_PLAY_CATEGORY_OPTIONS,
+  setFamilyFriendlyDeckFilter
 } from "@/lib/pass-play-deck";
 import type { GameSnapshot, Player, Prompt } from "@/lib/types";
 import {
@@ -508,7 +511,8 @@ function Setup({
             type="button"
             onClick={() => setPlayMode("multi_device")}
           >
-            Everyone joins
+            <strong>Everyone joins</strong>
+            <span>Players use their own phones.</span>
           </button>
           <button
             className={playMode === "pass_and_play" ? "segment active" : "segment"}
@@ -518,7 +522,8 @@ function Setup({
               if (playMode !== "pass_and_play") setPromptMode("deck");
             }}
           >
-            Pass & Play
+            <strong>Pass & Play</strong>
+            <span>One shared device, passed around.</span>
           </button>
         </div>
       </div>
@@ -623,17 +628,20 @@ function Setup({
           <label>Prompt mode</label>
           <div className="segmented">
             <button className={promptMode === "free" ? "segment active" : "segment"} type="button" onClick={() => setPromptMode("free")}>
-              Anything goes
+              <strong>Anything goes</strong>
+              <span>Players write their own prompts.</span>
             </button>
             <button className={promptMode === "category" ? "segment active" : "segment"} type="button" onClick={() => setPromptMode("category")}>
-              Category mix
+              <strong>Category prompts</strong>
+              <span>Players write from assigned categories.</span>
             </button>
             <button
               className={promptMode === "deck" ? "segment active" : "segment"}
               type="button"
               onClick={() => setPromptMode("deck")}
             >
-              Deck draft
+              <strong>Deck draft</strong>
+              <span>Players choose cards from a shared deck.</span>
             </button>
           </div>
         </div>
@@ -649,6 +657,7 @@ function Setup({
               : "Tap a category below to use category prompts for Everyone Joins."
           }
           inactive={promptMode === "free"}
+          showFamilyFriendly={promptMode === "deck"}
           onActivate={promptMode === "free" ? () => setPromptMode("category") : undefined}
           setCategories={setPromptCategories}
         />
@@ -744,13 +753,16 @@ function PassAndPlaySetup({
         <label>Pass & Play prompts</label>
         <div className="segmented">
           <button className={promptMode === "deck" ? "segment active" : "segment"} type="button" onClick={() => setPromptMode("deck")}>
-            Built-in deck
+            <strong>Built-in deck</strong>
+            <span>Load cards automatically.</span>
           </button>
           <button className={promptMode === "free" ? "segment active" : "segment"} type="button" onClick={() => setPromptMode("free")}>
-            Write prompts
+            <strong>Write prompts</strong>
+            <span>Players make the deck together.</span>
           </button>
           <button className={promptMode === "category" ? "segment active" : "segment"} type="button" onClick={() => setPromptMode("category")}>
-            Category prompts
+            <strong>Category prompts</strong>
+            <span>Players write from assigned categories.</span>
           </button>
         </div>
       </div>
@@ -785,6 +797,7 @@ function PassAndPlaySetup({
             : "Tap a category to switch from free writing to category prompts."
         }
         inactive={promptMode === "free"}
+        showFamilyFriendly={promptMode === "deck"}
         onActivate={promptMode === "free" ? () => setPromptMode("category") : undefined}
         setCategories={setCategories}
       />
@@ -862,33 +875,51 @@ function CategorySelector({
   helpText,
   inactive = false,
   onActivate,
+  showFamilyFriendly = false,
   setCategories
 }: {
   categories: string[];
   helpText?: string;
   inactive?: boolean;
   onActivate?: () => void;
+  showFamilyFriendly?: boolean;
   setCategories: (categories: string[]) => void;
 }) {
+  const familyFriendlyEnabled = hasFamilyFriendlyDeckFilter(categories);
+
   function toggleCategory(categoryId: string) {
     onActivate?.();
 
     if (categoryId === MIXED_PASS_PLAY_CATEGORY) {
-      setCategories([MIXED_PASS_PLAY_CATEGORY]);
+      setCategories(setFamilyFriendlyDeckFilter([MIXED_PASS_PLAY_CATEGORY], familyFriendlyEnabled));
       return;
     }
 
-    const withoutMixed = categories.filter((category) => category !== MIXED_PASS_PLAY_CATEGORY);
+    const withoutMixed = categories.filter((category) => category !== MIXED_PASS_PLAY_CATEGORY && category !== FAMILY_FRIENDLY_DECK_FILTER);
     const nextCategories = withoutMixed.includes(categoryId)
       ? withoutMixed.filter((category) => category !== categoryId)
       : [...withoutMixed, categoryId];
-    setCategories(nextCategories.length > 0 ? nextCategories : [MIXED_PASS_PLAY_CATEGORY]);
+    setCategories(setFamilyFriendlyDeckFilter(nextCategories.length > 0 ? nextCategories : [MIXED_PASS_PLAY_CATEGORY], familyFriendlyEnabled));
+  }
+
+  function toggleFamilyFriendly() {
+    setCategories(setFamilyFriendlyDeckFilter(categories, !familyFriendlyEnabled));
   }
 
   return (
     <div className="field">
       <label>Categories</label>
       {helpText ? <p className="muted tiny">{helpText}</p> : null}
+      {showFamilyFriendly ? (
+        <button
+          className={familyFriendlyEnabled ? "team-choice selected family-choice" : "team-choice family-choice"}
+          type="button"
+          onClick={toggleFamilyFriendly}
+        >
+          <strong>Family Friendly</strong>
+          <span>Uses simple, all-ages cards.</span>
+        </button>
+      ) : null}
       <div className="category-toggle-grid">
         <button
           className={!inactive && categories.includes(MIXED_PASS_PLAY_CATEGORY) ? "team-choice selected" : "team-choice"}
