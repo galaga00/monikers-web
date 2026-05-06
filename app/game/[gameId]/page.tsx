@@ -29,8 +29,7 @@ import {
   getDefaultPassPlayCardCount,
   hasFamilyFriendlyDeckFilter,
   MIXED_PASS_PLAY_CATEGORY,
-  PASS_PLAY_CATEGORY_OPTIONS,
-  setFamilyFriendlyDeckFilter
+  PASS_PLAY_CATEGORY_OPTIONS
 } from "@/lib/pass-play-deck";
 import type { GameSnapshot, Player, Prompt } from "@/lib/types";
 import {
@@ -646,19 +645,15 @@ function Setup({
           </div>
         </div>
       ) : null}
-      {playMode === "multi_device" ? (
+      {playMode === "multi_device" && promptMode !== "free" ? (
         <CategorySelector
           categories={promptCategories}
           helpText={
             promptMode === "deck"
               ? "Cards will be dealt from these categories. Mixed pulls from the full deck."
-              : promptMode === "category"
-              ? "Players will be asked for prompt ideas from these categories. Mixed spreads the prompts across the full set."
-              : "Tap a category below to use category prompts for Everyone Joins."
+              : "Players will be asked for prompt ideas from these categories. Mixed spreads the prompts across the full set."
           }
-          inactive={promptMode === "free"}
           showFamilyFriendly={promptMode === "deck"}
-          onActivate={promptMode === "free" ? () => setPromptMode("category") : undefined}
           setCategories={setPromptCategories}
         />
       ) : null}
@@ -787,20 +782,18 @@ function PassAndPlaySetup({
         )}
       </div>
 
-      <CategorySelector
-        categories={categories}
-        helpText={
-          promptMode === "deck"
-            ? "Cards will be loaded from these categories. Mixed pulls from the full deck."
-            : promptMode === "category"
-            ? "The shared prompt form will ask for ideas from these categories."
-            : "Tap a category to switch from free writing to category prompts."
-        }
-        inactive={promptMode === "free"}
-        showFamilyFriendly={promptMode === "deck"}
-        onActivate={promptMode === "free" ? () => setPromptMode("category") : undefined}
-        setCategories={setCategories}
-      />
+      {promptMode !== "free" ? (
+        <CategorySelector
+          categories={categories}
+          helpText={
+            promptMode === "deck"
+              ? "Cards will be loaded from these categories. Mixed pulls from the full deck."
+              : "The shared prompt form will ask for ideas from these categories."
+          }
+          showFamilyFriendly={promptMode === "deck"}
+          setCategories={setCategories}
+        />
+      ) : null}
 
       <div className="stack">
         <h3>Players</h3>
@@ -873,25 +866,19 @@ function PassAndPlaySetup({
 function CategorySelector({
   categories,
   helpText,
-  inactive = false,
-  onActivate,
   showFamilyFriendly = false,
   setCategories
 }: {
   categories: string[];
   helpText?: string;
-  inactive?: boolean;
-  onActivate?: () => void;
   showFamilyFriendly?: boolean;
   setCategories: (categories: string[]) => void;
 }) {
   const familyFriendlyEnabled = hasFamilyFriendlyDeckFilter(categories);
 
   function toggleCategory(categoryId: string) {
-    onActivate?.();
-
     if (categoryId === MIXED_PASS_PLAY_CATEGORY) {
-      setCategories(setFamilyFriendlyDeckFilter([MIXED_PASS_PLAY_CATEGORY], familyFriendlyEnabled));
+      setCategories([MIXED_PASS_PLAY_CATEGORY]);
       return;
     }
 
@@ -899,11 +886,11 @@ function CategorySelector({
     const nextCategories = withoutMixed.includes(categoryId)
       ? withoutMixed.filter((category) => category !== categoryId)
       : [...withoutMixed, categoryId];
-    setCategories(setFamilyFriendlyDeckFilter(nextCategories.length > 0 ? nextCategories : [MIXED_PASS_PLAY_CATEGORY], familyFriendlyEnabled));
+    setCategories(nextCategories.length > 0 ? nextCategories : [MIXED_PASS_PLAY_CATEGORY]);
   }
 
   function toggleFamilyFriendly() {
-    setCategories(setFamilyFriendlyDeckFilter(categories, !familyFriendlyEnabled));
+    setCategories(familyFriendlyEnabled ? [MIXED_PASS_PLAY_CATEGORY] : [MIXED_PASS_PLAY_CATEGORY, FAMILY_FRIENDLY_DECK_FILTER]);
   }
 
   return (
@@ -922,22 +909,22 @@ function CategorySelector({
       ) : null}
       <div className="category-toggle-grid">
         <button
-          className={!inactive && categories.includes(MIXED_PASS_PLAY_CATEGORY) ? "team-choice selected" : "team-choice"}
+          className={!familyFriendlyEnabled && categories.includes(MIXED_PASS_PLAY_CATEGORY) ? "team-choice selected" : "team-choice"}
           type="button"
           onClick={() => toggleCategory(MIXED_PASS_PLAY_CATEGORY)}
         >
           <strong>Mixed</strong>
-          <span>{inactive ? "Tap to use" : "Balanced pull"}</span>
+          <span>Balanced pull</span>
         </button>
         {PASS_PLAY_CATEGORY_OPTIONS.map((category) => (
           <button
-            className={!inactive && categories.includes(category.id) ? "team-choice selected" : "team-choice"}
+            className={!familyFriendlyEnabled && categories.includes(category.id) ? "team-choice selected" : "team-choice"}
             key={category.id}
             type="button"
             onClick={() => toggleCategory(category.id)}
           >
             <strong>{category.label}</strong>
-            <span>{inactive ? "Tap to use" : categories.includes(category.id) ? "Included" : "Tap to include"}</span>
+            <span>{!familyFriendlyEnabled && categories.includes(category.id) ? "Included" : "Tap to include"}</span>
           </button>
         ))}
       </div>
