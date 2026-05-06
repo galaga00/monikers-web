@@ -7,6 +7,8 @@ import { ASSETS } from "@/lib/assets";
 import { createGame, joinGame } from "@/lib/game-api";
 import { getPlayerStorageKey, normalizeCode } from "@/lib/game-utils";
 
+const titleLetters = Array.from("Fish Bowl");
+
 export default function Home() {
   const router = useRouter();
   const [mode, setMode] = useState<"menu" | "join">("menu");
@@ -48,7 +50,18 @@ export default function Home() {
     <main className="home-shell">
       <section className={mode === "join" ? "home-art-stage joining" : "home-art-stage"} aria-labelledby="home-title">
         <div className="home-title-lockup">
-          <h1 id="home-title">Fish Bowl</h1>
+          <h1 id="home-title" aria-label="Fish Bowl">
+            {titleLetters.map((letter, index) => (
+              <span
+                aria-hidden="true"
+                className={letter === " " ? "home-title-space" : "home-title-letter"}
+                key={`${letter}-${index}`}
+                style={{ "--wave-index": index } as React.CSSProperties}
+              >
+                {letter}
+              </span>
+            ))}
+          </h1>
         </div>
 
         <div className="home-illustration-frame">

@@ -97,6 +97,47 @@ a {
   text-shadow: 0 3px 0 rgba(255, 255, 255, 0.62);
 }
 
+.home-title-letter,
+.home-title-space {
+  display: inline-block;
+}
+
+.home-title-letter {
+  animation: titleWave 3.8s ease-in-out infinite;
+  animation-delay: calc(var(--wave-index) * 120ms);
+  transform-origin: 50% 72%;
+  will-change: transform;
+}
+
+.home-title-space {
+  width: 0.18em;
+}
+
+@keyframes titleWave {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+
+  18% {
+    transform: translateY(-7px) rotate(-1deg);
+  }
+
+  36% {
+    transform: translateY(3px) rotate(0.7deg);
+  }
+
+  54% {
+    transform: translateY(0) rotate(0deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-title-letter {
+    animation: none;
+  }
+}
+
 .home-art-stage.joining .home-title-lockup {
   opacity: 0;
   pointer-events: none;
